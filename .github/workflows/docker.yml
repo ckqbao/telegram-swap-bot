@@ -1,0 +1,55 @@
+name: Docker build and push
+
+on:
+  push:
+    branches: ['main']
+
+env:
+  DEPLOY_ENV: production
+  IMAGE_NAME: ckqbao/telegram-swap-bot
+  REGISTRY: ghcr.io
+
+jobs:
+  prepare:
+    environment: 'production'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Update version
+        uses: ./.github/actions/update-version
+
+      - name: Get latest tag
+        id: set-tag
+        run: |
+          echo "Attempting to get tag"
+          tag=$(git tag --list --sort=-v:refname | head -n 1)
+          version="$tag"
+          # Replace . with - for service names
+          version=$(echo "$version" | tr '.' '-')
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Version obtained: $version"
+
+    outputs:
+      version: ${{ steps.set-tag.outputs.version }}
+
+  build:
+    needs: [prepare]
+    environment: 'production'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write, id-token: write }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: build and push docker image - telegram swap bot
+        uses: ./.github/actions/build-docker
+        with:
+          REGISTRY: ${{ env.REGISTRY }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          DOCKERFILE: Dockerfile
+          VERSION: ${{ needs.prepare.outputs.version}}
