@@ -18,13 +18,16 @@ export class OneInchClassicSwapService {
 
   constructor(@Inject(WALLET_CLIENT) private readonly walletClient: ExtendedWalletClient) {}
 
-  async performSwap(config: {
-    privateKey: string;
-    tokenAddress: string;
-    dstToken: string;
-    amountToSwap: bigint;
-    slippage: number;
-  }): Promise<void> {
+  async performSwap(
+    config: {
+      privateKey: string;
+      tokenAddress: string;
+      dstToken: string;
+      amountToSwap: bigint;
+      slippage: number;
+    },
+    onStatusUpdate?: (status: 'approving' | 'approved' | 'swapping') => Promise<void>,
+  ): Promise<void> {
     const account = privateKeyToAccount(config.privateKey as Hex, { nonceManager });
 
     const swapParams = {
@@ -40,11 +43,14 @@ export class OneInchClassicSwapService {
     const allowance = await this.getAllowance(swapParams.src, swapParams.from);
 
     if (allowance < config.amountToSwap) {
+      await onStatusUpdate?.('approving');
       const approveTx = await this.getApproveTx({ amount: config.amountToSwap, tokenAddress: swapParams.src });
       const approveTxHash = await this.sendTransaction(account, approveTx);
       await this.walletClient.waitForTransactionReceipt({ hash: approveTxHash as Hex, retryCount: 3 });
+      await onStatusUpdate?.('approved');
     }
 
+    await onStatusUpdate?.('swapping');
     const { tx } = await this.call1inchAPI('/swap', swapParams, swapResponseSchema);
 
     const txHash = await this.sendTransaction(account, tx);

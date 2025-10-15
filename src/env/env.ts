@@ -18,6 +18,7 @@ export const envSchema = z.object({
   ONE_INCH_API_KEY: z.string(),
   ONE_INCH_BASE_URL: z.string().default('https://api.1inch.com'),
   TELEGRAM_BOT_TOKEN: z.string().default('8063071679:AAGZzFTNZjaKgR-p3Gz7CLHUugNcKp9GkCk'),
+  REDIS_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

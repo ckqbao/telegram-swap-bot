@@ -50,17 +50,20 @@ export class ProcessCallbackQueryUseCase {
       case Command.BALANCE:
         await this.getBalance(message, user);
         return;
-      case Command['BUYTOKEN_0.01']:
       case Command['BUYTOKEN_0.05']:
+      case Command['BUYTOKEN_0.06']:
+      case Command['BUYTOKEN_0.08']:
       case Command['BUYTOKEN_0.1']:
-      case Command['BUYTOKEN_0.25']:
-      case Command['BUYTOKEN_0.5']: {
+      case Command['BUYTOKEN_0.11']:
+      case Command['BUYTOKEN_0.12']:
+      case Command['BUYTOKEN_0.15']:
+      case Command['BUYTOKEN_0.25']: {
         const amount = Number(command.split('_')[1]);
         await this.swapService.buyToken(message, amount, user.id);
         return;
       }
       case Command.BUYTOKEN_CUSTOM:
-        await ctx.scene.enter(BUYTOKEN_CUSTOM_SCENE);
+        await ctx.scene.enter(BUYTOKEN_CUSTOM_SCENE, { fromMsg: message });
         break;
       case Command.DISMISS_MESSAGE:
         await this.dismissMessage(message.chat.id, message.message_id);

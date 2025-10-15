@@ -36,7 +36,8 @@ export class BuyTokenCustomScene extends BaseScene {
     @Message() msg: TgMessage.TextMessage,
   ) {
     const { from } = ctx;
-    if (!from) return this.showUnexpectedError(ctx);
+    const { fromMsg } = ctx.wizard.state as { fromMsg: TgMessage.TextMessage | undefined };
+    if (!from || !fromMsg) return this.showUnexpectedError(ctx);
 
     const { data } = ctx.update?.callback_query ?? {};
     if (data === Command.CANCEL) return this.abortScene(ctx);
@@ -54,7 +55,7 @@ export class BuyTokenCustomScene extends BaseScene {
     }
 
     const amount = Number(messageText);
-    await this.swapService.buyToken(msg, amount, from.id);
+    await this.swapService.buyToken(fromMsg, amount, from.id);
     await this.cleanScene(ctx);
     await ctx.scene.leave();
     return;

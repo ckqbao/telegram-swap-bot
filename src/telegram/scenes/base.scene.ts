@@ -2,6 +2,7 @@ import { Command } from 'nestjs-telegraf';
 import { Message } from 'telegraf/typings/core/types/typegram';
 import { WizardContext } from 'telegraf/typings/scenes';
 import z from 'zod';
+import { buildCloseKeyboard } from '../utils/inline-keyboard';
 
 export abstract class BaseScene {
   @Command('cancel')
@@ -13,7 +14,7 @@ export abstract class BaseScene {
 
   addMessageToState(ctx: WizardContext, msg: Message.TextMessage) {
     const { messages = [] } = ctx.scene.state as { messages?: Message.TextMessage[] };
-    ctx.scene.state = { messages: [...messages, msg] };
+    ctx.scene.state = { ...ctx.scene.state, messages: [...messages, msg] };
   }
 
   async cleanScene(ctx: WizardContext) {
@@ -29,7 +30,12 @@ export abstract class BaseScene {
   }
 
   async showUnexpectedError(ctx: WizardContext) {
+    await ctx.reply('Unexpected error occured. Please try again.', {
+      reply_markup: {
+        inline_keyboard: buildCloseKeyboard(),
+      },
+    });
     await ctx.scene.leave();
-    return 'Unexpected error occured. Please try again.';
+    return;
   }
 }
