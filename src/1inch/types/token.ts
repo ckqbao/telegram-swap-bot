@@ -12,11 +12,12 @@ export const tokenInfoSchema = z.object({
   name: z.string(),
   address: z.string(),
   decimals: z.number(),
-  logoURI: z.string(),
+  logoURI: z.string().optional(),
   rating: z.number(),
   eip2612: z.boolean().nullish(),
   isFoT: z.boolean().nullish(),
   tags: z.array(tagSchema),
+  providers: z.array(z.string()),
 });
 
 export const tokensInfoSchema = z.record(hexSchema, tokenInfoSchema.extend({ tags: z.string().array() }));
