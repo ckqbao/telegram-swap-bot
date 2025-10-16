@@ -3,23 +3,25 @@ import { Ctx, Message, On, Wizard, WizardStep } from 'nestjs-telegraf';
 import { WizardContext } from 'telegraf/typings/scenes';
 import { CallbackQuery, Message as TgMessage, Update } from 'telegraf/typings/core/types/typegram';
 
+import { isInputAmount } from '@/common/utils/number';
+
 import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { BaseScene } from './base.scene';
-import { BUYTOKEN_CUSTOM_SCENE } from '../constants/scene';
-import { BUY_X_BNB_TEXT } from '../bot.opts';
+import { SELLTOKEN_CUSTOM_SCENE } from '../constants/scene';
+import { SELL_X_PERCENT_TEXT } from '../bot.opts';
 import { SwapService } from '../swap.service';
 import { buildCancelKeyboard } from '../utils/inline-keyboard';
 import { cleanScene } from '../utils/scene';
 
-@Wizard(BUYTOKEN_CUSTOM_SCENE)
+@Wizard(SELLTOKEN_CUSTOM_SCENE)
 @UseFilters(TelegrafExceptionFilter)
-export class BuyTokenCustomScene extends BaseScene {
+export class SellTokenCustomScene extends BaseScene {
   @Inject()
   private readonly swapService: SwapService;
 
   @WizardStep(1)
   async onSceneEnter(@Ctx() ctx: WizardContext) {
-    const message = await ctx.reply(BUY_X_BNB_TEXT, {
+    const message = await ctx.reply(SELL_X_PERCENT_TEXT, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: buildCancelKeyboard(),
@@ -43,16 +45,13 @@ export class BuyTokenCustomScene extends BaseScene {
 
     const messageText = msg.text;
 
-    const regex = /^[0-9]+(\.[0-9]+)?$/;
-    const isNumber = regex.test(messageText) === true;
-
-    if (!isNumber) {
+    if (!isInputAmount(messageText)) {
       await ctx.deleteMessage(msg.message_id);
       return;
     }
 
-    const amount = Number(messageText);
-    await this.swapService.buyToken(fromMsg, amount, from.id);
+    const percent = Number(messageText);
+    await this.swapService.sellToken(fromMsg, percent, from.id);
     await cleanScene(ctx);
     await ctx.scene.leave();
     return;

@@ -21,6 +21,10 @@ export class BotService {
   }
 
   async setMyCommands() {
-    await this.bot.telegram.setMyCommands([{ command: 'wallet', description: 'Setup wallets' }]);
+    await this.bot.telegram.setMyCommands([
+      { command: 'start', description: 'Welcome to the bot' },
+      { command: 'setmainwallet', description: 'Set main wallet' },
+      { command: 'wallet', description: 'Setup wallets' },
+    ]);
   }
 }

@@ -56,18 +56,14 @@ export class SwapService {
       const successCaption = this.swapScreen.buildCaption(amount, NATIVE_TOKEN, 'buy');
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: buildCloseKeyboard(),
-        },
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     } catch (error) {
       this.logger.error('Failed to buy token', error);
       const failedCaption = this.swapScreen.buildFailedCaption(amount, NATIVE_TOKEN, 'buy');
       await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: buildCloseKeyboard(),
-        },
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     }
   }
@@ -86,11 +82,14 @@ export class SwapService {
     ]);
     const balance = Object.values(tokenBalances)[0];
     if (!balance) {
-      await this.bot.telegram.sendMessage(msg.chat.id, 'No balance for this token to sell', { parse_mode: 'HTML' });
+      await this.bot.telegram.sendMessage(msg.chat.id, 'No balance for this token to sell', {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+      });
       return;
     }
 
-    const amount = balance / BigInt(percent / 100);
+    const amount = Number(formatUnits(balance, tokenInfo.decimals)) * (percent / 100);
     try {
       const messages: Message.TextMessage[] = [];
       await this.oneInchClassicSwapService.performSwap(
@@ -98,7 +97,7 @@ export class SwapService {
           privateKey,
           tokenAddress,
           dstToken: TOKEN_ADDRESS[NATIVE_TOKEN],
-          amountToSwap: amount,
+          amountToSwap: parseUnits(`${amount}`, tokenInfo.decimals),
           slippage: preference.slippage,
         },
         async (status) => {
@@ -109,25 +108,17 @@ export class SwapService {
         },
       );
       await this.cleanMessages(msg.chat.id, messages);
-      const successCaption = this.swapScreen.buildCaption(
-        Number(formatUnits(amount, tokenInfo.decimals)),
-        tokenInfo.symbol,
-        'sell',
-      );
+      const successCaption = this.swapScreen.buildCaption(amount, tokenInfo.symbol, 'sell');
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: buildCloseKeyboard(),
-        },
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     } catch (error) {
       this.logger.error('Failed to sell token', error);
-      const failedCaption = this.swapScreen.buildFailedCaption(Number(amount), tokenInfo.symbol, 'sell');
+      const failedCaption = this.swapScreen.buildFailedCaption(amount, tokenInfo.symbol, 'sell');
       await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {
         parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: buildCloseKeyboard(),
-        },
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     }
   }

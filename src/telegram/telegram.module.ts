@@ -17,6 +17,9 @@ import { WalletSettingsScene } from './scenes/wallet-settings.scene';
 import { SetMainWalletScene } from './scenes/set-main-wallet.scene';
 import { SwapService } from './swap.service';
 import { BuyTokenCustomScene } from './scenes/buytoken-custom.scene';
+import { SellTokenCustomScene } from './scenes/selltoken-custom.scene';
+import { SetSlippageScene } from './scenes/set-slippage.scene';
+import { TokenService } from './token.service';
 
 @Module({
   imports: [
@@ -32,13 +35,16 @@ import { BuyTokenCustomScene } from './scenes/buytoken-custom.scene';
     BotService,
     BotUpdate,
     BuyTokenCustomScene,
+    SellTokenCustomScene,
     SetMainWalletScene,
+    SetSlippageScene,
     WalletSettingsScene,
     BalanceScreen,
     SwapScreen,
     TokenInfoScreen,
     WelcomeScreen,
     SwapService,
+    TokenService,
     ProcessCallbackQueryUseCase,
     ProcessMessageTextUseCase,
   ],

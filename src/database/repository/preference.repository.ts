@@ -12,4 +12,9 @@ export class PreferenceRepository {
     if (preference) return preference;
     return await this.preferenceModel.create({ userId });
   }
+
+  async setSlippage(userId: number, slippage: number) {
+    await this.getByUserId(userId);
+    await this.preferenceModel.updateOne({ userId }, { slippage });
+  }
 }

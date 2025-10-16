@@ -17,6 +17,10 @@ export function buildInlineKeyboard(
   );
 }
 
+export function buildCancelKeyboard() {
+  return buildInlineKeyboard([[{ text: '❌ Cancel', command: Command.CANCEL }]]);
+}
+
 export function buildCloseKeyboard() {
   return buildInlineKeyboard([[{ text: '❌ Close', command: Command.DISMISS_MESSAGE }]]);
 }
