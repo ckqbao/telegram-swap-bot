@@ -21,7 +21,7 @@ export const envSchema = z.object({
   OKX_API_SECRET: z.string(),
   OKX_API_PASSPHRASE: z.string(),
   OKX_PROJECT_ID: z.string(),
-  TELEGRAM_BOT_TOKEN: z.string().default('8063071679:AAGZzFTNZjaKgR-p3Gz7CLHUugNcKp9GkCk'),
+  TELEGRAM_BOT_TOKEN: z.string(),
   REDIS_URL: z.string().optional(),
   EVM_RPC_URL: z.string().default('https://bsc-dataseed1.bnbchain.org'),
 });
