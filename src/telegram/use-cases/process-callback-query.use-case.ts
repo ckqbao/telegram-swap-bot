@@ -51,7 +51,7 @@ export class ProcessCallbackQueryUseCase {
       case Command['BUYTOKEN_0.12']:
       case Command['BUYTOKEN_0.15']:
       case Command['BUYTOKEN_0.25']: {
-        const amount = Number(command.split('_')[1]);
+        const amount = command.split('_')[1];
         await this.swapService.buyToken(message, amount, user.id);
         return;
       }

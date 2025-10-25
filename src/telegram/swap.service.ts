@@ -4,13 +4,13 @@ import { Telegraf } from 'telegraf';
 import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
 import { formatUnits, parseUnits } from 'viem';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
-import { OneInchClassicSwapService } from '@/1inch/1inch-classic-swap.service';
-import { NATIVE_TOKEN, TOKEN_ADDRESS, TOKEN_DECIMALS } from '@/common/constants';
+import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
 import { MsgLogRepository, PreferenceRepository, WalletRepository } from '@/database/repository';
 import { Context } from './interfaces/context.interface';
 import { SwapScreen } from './screens/swap.screen';
 import { OneInchTokenService } from '@/1inch/1inch-token.service';
 import { buildCloseKeyboard } from './utils/inline-keyboard';
+import { SwapProviderService } from './swap-provider.service';
 
 @Injectable()
 export class SwapService {
@@ -23,11 +23,11 @@ export class SwapService {
     private readonly walletRepository: WalletRepository,
     private readonly swapScreen: SwapScreen,
     private readonly oneInchBalanceService: OneInchBalanceService,
-    private readonly oneInchClassicSwapService: OneInchClassicSwapService,
     private readonly oneInchTokenService: OneInchTokenService,
+    private readonly swapProviderService: SwapProviderService,
   ) {}
 
-  async buyToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, amount: number, userId: number) {
+  async buyToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, amount: string, userId: number) {
     const msgLog = await this.msgLogRepository.findMsgLog({
       msgId: msg.message_id,
     });
@@ -35,14 +35,16 @@ export class SwapService {
     const { tokenAddress } = msgLog;
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
+    const messages: Message.TextMessage[] = [];
     try {
-      const messages: Message.TextMessage[] = [];
-      await this.oneInchClassicSwapService.performSwap(
+      const now = Date.now();
+      await this.swapProviderService.performSwap(
         {
           privateKey,
-          tokenAddress: TOKEN_ADDRESS[NATIVE_TOKEN],
-          dstToken: tokenAddress,
-          amountToSwap: parseUnits(`${amount}`, TOKEN_DECIMALS),
+          fromTokenAddress: this.swapProviderService.nativeTokenAddress,
+          fromTokenDecimals: NATIVE_TOKEN_DECIMALS,
+          toTokenAddress: tokenAddress,
+          amountToSwap: amount,
           slippage: preference.slippage,
         },
         async (status) => {
@@ -52,6 +54,7 @@ export class SwapService {
           messages.push(message);
         },
       );
+      console.log(`Buy token took ${Date.now() - now}ms`);
       await this.cleanMessages(msg.chat.id, messages);
       const successCaption = this.swapScreen.buildCaption(amount, NATIVE_TOKEN, 'buy');
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
@@ -59,6 +62,7 @@ export class SwapService {
         reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     } catch (error) {
+      await this.cleanMessages(msg.chat.id, messages);
       this.logger.error('Failed to buy token', error);
       const failedCaption = this.swapScreen.buildFailedCaption(amount, NATIVE_TOKEN, 'buy');
       await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {
@@ -89,15 +93,17 @@ export class SwapService {
       return;
     }
 
-    const amount = Number(formatUnits(balance, tokenInfo.decimals)) * (percent / 100);
+    const amount = formatUnits((balance * BigInt(percent)) / 100n, tokenInfo.decimals);
+    const messages: Message.TextMessage[] = [];
     try {
-      const messages: Message.TextMessage[] = [];
-      await this.oneInchClassicSwapService.performSwap(
+      const now = Date.now();
+      await this.swapProviderService.performSwap(
         {
           privateKey,
-          tokenAddress,
-          dstToken: TOKEN_ADDRESS[NATIVE_TOKEN],
-          amountToSwap: parseUnits(`${amount}`, tokenInfo.decimals),
+          fromTokenAddress: tokenAddress,
+          fromTokenDecimals: tokenInfo.decimals,
+          toTokenAddress: this.swapProviderService.nativeTokenAddress,
+          amountToSwap: amount,
           slippage: preference.slippage,
         },
         async (status) => {
@@ -107,6 +113,7 @@ export class SwapService {
           messages.push(message);
         },
       );
+      console.log(`Sell token took ${Date.now() - now}ms`);
       await this.cleanMessages(msg.chat.id, messages);
       const successCaption = this.swapScreen.buildCaption(amount, tokenInfo.symbol, 'sell');
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
@@ -114,6 +121,7 @@ export class SwapService {
         reply_markup: { inline_keyboard: buildCloseKeyboard() },
       });
     } catch (error) {
+      await this.cleanMessages(msg.chat.id, messages);
       this.logger.error('Failed to sell token', error);
       const failedCaption = this.swapScreen.buildFailedCaption(amount, tokenInfo.symbol, 'sell');
       await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {

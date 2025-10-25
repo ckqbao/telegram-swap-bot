@@ -3,22 +3,19 @@ import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestj
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Hex } from 'viem';
-import { WALLET_CLIENT } from './1inch.constant';
 import { tokenInfoSchema, tokensInfoSchema, TokenInfo, TokensInfo } from './types/token';
-import { ExtendedWalletClient } from './providers/wallet-client.provider';
+import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchTokenService {
   private readonly logger = new Logger(OneInchTokenService.name);
   private baseUrl = `${env.ONE_INCH_BASE_URL}/token/v1.4`;
+  private TOKEN_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-  constructor(
-    @Inject(WALLET_CLIENT) private readonly walletClient: ExtendedWalletClient,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {}
+  constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
   async getTokenInfo(address: Hex): Promise<TokenInfo> {
-    const chainId = await this.walletClient.getChainId();
+    const chainId = MAIN_CHAIN_ID;
     const cacheKey = `token:${chainId}:${address.toLowerCase()}`;
 
     // Try to get from cache
@@ -47,13 +44,13 @@ export class OneInchTokenService {
     const tokenInfo = tokenInfoSchema.parse(data);
 
     // Store in cache
-    await this.cacheManager.set(cacheKey, tokenInfo);
+    void this.cacheManager.set(cacheKey, tokenInfo, this.TOKEN_CACHE_TTL);
 
     return tokenInfo;
   }
 
   async getTokensInfo(tokenAddresses: Hex[]): Promise<TokensInfo> {
-    const chainId = await this.walletClient.getChainId();
+    const chainId = MAIN_CHAIN_ID;
     const normalizedAddresses = tokenAddresses.map((addr) => addr.toLowerCase() as Hex);
     const cacheKey = `tokens:${chainId}:${normalizedAddresses.sort().join(',')}`;
 
@@ -83,7 +80,7 @@ export class OneInchTokenService {
     const tokensInfo = tokensInfoSchema.parse(data);
 
     // Store in cache
-    await this.cacheManager.set(cacheKey, tokensInfo);
+    void this.cacheManager.set(cacheKey, tokensInfo, this.TOKEN_CACHE_TTL);
 
     return tokensInfo;
   }

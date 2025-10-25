@@ -1,18 +1,16 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import z from 'zod';
 import { env } from '@/env/env';
-import { WALLET_CLIENT } from './1inch.constant';
-import { ExtendedWalletClient } from './providers/wallet-client.provider';
+import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchSpotPriceService {
   private baseUrl = `${env.ONE_INCH_BASE_URL}/price/v1.1`;
 
-  constructor(@Inject(WALLET_CLIENT) private readonly walletClient: ExtendedWalletClient) {}
+  constructor() {}
 
   async getTokenPrice(tokenAddress: string) {
-    const chainId = await this.walletClient.getChainId();
-    const url = `${this.baseUrl}/${chainId}/${tokenAddress}?currency=USD`;
+    const url = `${this.baseUrl}/${MAIN_CHAIN_ID}/${tokenAddress}?currency=USD`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {

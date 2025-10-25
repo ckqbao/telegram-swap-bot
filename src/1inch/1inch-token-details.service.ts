@@ -1,21 +1,19 @@
-import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Hex } from 'viem';
 import z from 'zod';
 import { env } from '@/env/env';
-import { WALLET_CLIENT } from './1inch.constant';
 import { tokenDetailsSchema } from './types/token-details';
-import { ExtendedWalletClient } from './providers/wallet-client.provider';
+import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchTokenDetailsService {
   private readonly logger = new Logger(OneInchTokenDetailsService.name);
   private baseUrl = `${env.ONE_INCH_BASE_URL}/token-details/v1.0/details`;
 
-  constructor(@Inject(WALLET_CLIENT) private readonly walletClient: ExtendedWalletClient) {}
+  constructor() {}
 
   async getTokenDetails(tokenAddress: Hex) {
-    const chainId = await this.walletClient.getChainId();
-    const url = `${this.baseUrl}/${chainId}/${tokenAddress}?provider=coinmarketcap`;
+    const url = `${this.baseUrl}/${MAIN_CHAIN_ID}/${tokenAddress}?provider=coinmarketcap`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {

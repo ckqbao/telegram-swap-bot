@@ -20,11 +20,20 @@ import { BuyTokenCustomScene } from './scenes/buytoken-custom.scene';
 import { SellTokenCustomScene } from './scenes/selltoken-custom.scene';
 import { SetSlippageScene } from './scenes/set-slippage.scene';
 import { TokenService } from './token.service';
+import { PcsModule } from '@/pcs/pcs.module';
+import { SwapProviderService } from './swap-provider.service';
+import { PcsSwapService } from '@/pcs/pcs-swap.service';
+import { CommonModule } from '@/common/common.module';
+import { OkxModule } from '@/okx/okx.module';
+import { OkxSwapService } from '@/okx/okx-swap.service';
 
 @Module({
   imports: [
+    CommonModule,
     JupiterModule,
+    OkxModule,
     OneInchModule,
+    PcsModule,
     TelegrafModule.forRootAsync({
       imports: [EnvModule],
       inject: [EnvService],
@@ -32,6 +41,10 @@ import { TokenService } from './token.service';
     }),
   ],
   providers: [
+    {
+      provide: SwapProviderService,
+      useClass: OkxSwapService,
+    },
     BotService,
     BotUpdate,
     BuyTokenCustomScene,

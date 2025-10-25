@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Screen } from '../interfaces/screen.interface';
+import { SwapStatus } from '@/common/interfaces/swap.interface';
 
 @Injectable()
 export class SwapScreen implements Screen {
   constructor() {}
 
-  buildCaption(amount: number, tokenSymbol: string, swapAction: 'buy' | 'sell') {
+  buildCaption(amount: string, tokenSymbol: string, swapAction: 'buy' | 'sell') {
     if (swapAction === 'buy') {
       return `Buy ${amount} ${tokenSymbol} succeed`;
     } else {
@@ -13,7 +14,7 @@ export class SwapScreen implements Screen {
     }
   }
 
-  buildFailedCaption(amount: number, tokenSymbol: string, swapAction: 'buy' | 'sell') {
+  buildFailedCaption(amount: string, tokenSymbol: string, swapAction: 'buy' | 'sell') {
     if (swapAction === 'buy') {
       return `Buy ${amount} ${tokenSymbol} failed`;
     } else {
@@ -21,10 +22,12 @@ export class SwapScreen implements Screen {
     }
   }
 
-  buildStatusCaption(status: 'approving' | 'approved' | 'swapping') {
+  buildStatusCaption(status: SwapStatus) {
     switch (status) {
       case 'approving':
         return 'Approving token...';
+      case 'already-approved':
+        return 'Token already approved!';
       case 'approved':
         return 'Token approved!';
       case 'swapping':

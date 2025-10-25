@@ -51,7 +51,7 @@ export class BuyTokenCustomScene extends BaseScene {
       return;
     }
 
-    const amount = Number(messageText);
+    const amount = messageText;
     await this.swapService.buyToken(fromMsg, amount, from.id);
     await cleanScene(ctx);
     await ctx.scene.leave();

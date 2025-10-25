@@ -12,7 +12,8 @@ import {
 import { computeAddress, JsonRpcProvider, Wallet } from 'ethers';
 import { bsc } from 'viem/chains';
 import { env } from '@/env/env';
-import { NATIVE_TOKEN, TOKEN_ADDRESS } from '@/common/constants';
+import { Swap, SwapConfig } from '@/common/interfaces/swap.interface';
+import { ONE_INCH_NATIVE_TOKEN_ADDRESS } from './1inch.constant';
 
 const NativeOrderFactoryAddress = '0xa562172dd87480687debca1cd7ab6a309919e9d8';
 
@@ -28,34 +29,31 @@ const ethersProviderConnector: Web3Like = {
 };
 
 @Injectable()
-export class OneInchFusionSwapService {
+export class OneInchFusionSwapService implements Swap {
   private readonly logger = new Logger(OneInchFusionSwapService.name);
+  readonly nativeTokenAddress = ONE_INCH_NATIVE_TOKEN_ADDRESS;
 
   constructor() {}
 
-  async performSwap(config: {
-    privateKey: string;
-    tokenAddress: string;
-    dstToken: string;
-    amountToSwap: bigint;
-    slippage: number;
-  }) {
+  async performSwap(config: SwapConfig) {
+    const { privateKey, fromTokenAddress, fromTokenDecimals, toTokenAddress, amountToSwap } = config;
+
     const params = {
-      fromTokenAddress: config.tokenAddress,
-      toTokenAddress: config.dstToken,
-      amount: config.amountToSwap.toString(),
-      walletAddress: computeAddress(config.privateKey),
+      fromTokenAddress,
+      toTokenAddress,
+      amount: amountToSwap.toString(),
+      walletAddress: computeAddress(privateKey),
     };
 
-    const sdk = this.getFusionSDK(config.privateKey);
+    const sdk = this.getFusionSDK(privateKey);
 
     // const quote = await sdk.getQuote(params);
 
     const preparedOrder = await sdk.createOrder(params);
 
     const info =
-      config.tokenAddress === TOKEN_ADDRESS[NATIVE_TOKEN]
-        ? await this.submitNativeOrder(sdk, preparedOrder, config.privateKey)
+      fromTokenAddress === this.nativeTokenAddress
+        ? await this.submitNativeOrder(sdk, preparedOrder, privateKey)
         : await this.submitOrder(sdk, preparedOrder);
 
     while (true) {
