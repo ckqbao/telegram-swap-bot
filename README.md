@@ -1,89 +1,120 @@
 # Cryptocurrency Swap Bot
 
-A Telegram bot for executing cryptocurrency token swaps across multiple blockchains. Built with NestJS and TypeScript.
+> A powerful Telegram bot for seamless cryptocurrency token swaps across multiple DEX aggregators on BNB Smart Chain
 
-## Description
+## Overview
 
-This bot provides a conversational interface for buying and selling cryptocurrency tokens through Telegram. It supports token swaps on multiple blockchains including Solana (via Jupiter) and EVM chains (via 1inch), allowing users to manage their wallets and execute trades directly from their Telegram chat.
+This Telegram bot provides an intuitive, conversational interface for executing cryptocurrency swaps directly from your Telegram chat. Built with enterprise-grade architecture using NestJS and TypeScript, it aggregates liquidity from multiple decentralized exchanges to find the best swap rates for your trades.
 
-## Features
+## Supported Chains
 
-- **Multi-chain Support**: Swap tokens on Solana (Jupiter) and EVM chains (1inch)
-- **Wallet Management**: Set and manage main wallet addresses
-- **Token Information**: View token details, prices, and balances
-- **Quick Trade Actions**: Preset buy/sell amounts for fast trading
-- **Custom Trade Amounts**: Flexible custom amount input for swaps
-- **Slippage Control**: Configure transaction slippage tolerance
-- **Database Integration**: MongoDB for storing user preferences and transaction logs
+- **BNB Smart Chain (BSC)** - Primary supported blockchain
 
-## Project setup
+## Integrated DEX Aggregators
 
-```bash
-$ npm install
-```
+The bot leverages multiple DEX aggregators to ensure optimal swap execution and competitive pricing:
 
-## Compile and run the project
+### 1inch
+- **SDK**: `@1inch/fusion-sdk`
+- **Features**: Fusion Mode swaps with gasless transactions and MEV protection
+- Aggregates liquidity across major DEXes for best pricing
 
-```bash
-# development
-$ npm run start
+### OKX DEX
+- **SDK**: `@okx-dex/okx-dex-sdk`
+- **Features**: Multi-chain DEX aggregation with optimized routing
+- Includes custom BSC compatibility patches for legacy transaction support
 
-# watch mode
-$ npm run start:dev
+### PancakeSwap
+- **SDK**: `@pancakeswap/smart-router`
+- **Features**: V2 and V3 liquidity pools with intelligent routing
+- Native integration with BSC's largest DEX
 
-# production mode
-$ npm run start:prod
-```
+### Jupiter *(Solana)*
+- Solana's leading DEX aggregator
+- Module prepared for future Solana integration
 
-## Run tests
+## Core Features
 
-```bash
-# unit tests
-$ npm run test
+### Trading & Swaps
+- Execute token swaps with multiple DEX options
+- Real-time price quotes and comparisons
+- Configurable slippage tolerance
+- Support for both ERC-20 tokens and native BNB
 
-# e2e tests
-$ npm run test:e2e
+### Smart Approvals
+- Flexible approval strategies:
+  - **Exact**: Only approve the required amount (safest)
+  - **Multiple**: Approve a multiplier of swap amount (balanced)
+  - **Unlimited**: One-time unlimited approval (most convenient)
+- Automatic approval detection to prevent unnecessary transactions
 
-# test coverage
-$ npm run test:cov
-```
+### User Experience
+- Clean, intuitive Telegram interface
+- Preset quick-trade buttons for common amounts
+- Custom amount input support
+- Real-time swap status updates
+- Transaction confirmation with explorer links
 
-## Deployment
+### Wallet Management
+- Secure private key handling
+- Multi-wallet support
+- Balance checking across tokens
+- Token metadata caching for performance
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Technical Architecture
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Backend Framework
+- **NestJS** - Modular, scalable architecture
+- **TypeScript** - Type-safe development
+- **MongoDB** - User preferences and transaction history
+- **Redis** - High-performance caching layer
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### Blockchain Integration
+- **Viem** - Modern, lightweight Ethereum library
+- **Ethers.js v6** - Battle-tested Web3 library
+- Custom provider implementations for chain-specific optimizations
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Message Queue
+- **Telegraf** - Modern Telegram bot framework
+- Scene-based navigation with inline keyboards
+- Middleware for authentication and error handling
 
-## Resources
+## Advanced Features
 
-Check out a few resources that may come in handy when working with NestJS:
+### Price Intelligence
+- Token price aggregation from multiple sources
+- Balance queries with real-time USD valuation
+- Historical price tracking
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Performance Optimizations
+- GraphQL integration for efficient subgraph queries
+- Multicall batching for reduced RPC calls
+- Token metadata caching (15-minute TTL)
+- Connection pooling for database operations
 
-## Support
+### Error Handling & Reliability
+- Comprehensive error logging with context
+- Transaction retry mechanisms
+- Graceful degradation when services are unavailable
+- User-friendly error messages in Telegram
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Security Features
 
-## Stay in touch
+- Encrypted private key storage
+- Input validation with Zod schemas
+- Rate limiting and spam protection
+- Transaction simulation before execution
+- Slippage protection
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## DEX Aggregator Selection
 
-## License
+The bot intelligently selects the optimal DEX aggregator based on:
+- Available liquidity
+- Gas costs
+- Slippage tolerance
+- Token pair support
+- User preferences
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+**Built with TypeScript, NestJS, and a passion for DeFi**
