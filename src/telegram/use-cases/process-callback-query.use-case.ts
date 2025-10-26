@@ -1,21 +1,21 @@
 import { Injectable } from '@nestjs/common';
+import { User } from '@telegraf/types';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { CallbackQuery, MaybeInaccessibleMessage, Update } from 'telegraf/typings/core/types/typegram';
-import { User } from '@telegraf/types';
+import { isAddress } from 'viem';
+import { OneInchTokenService } from '@/1inch/1inch-token.service';
+import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
+import { TOKEN_ADDRESS } from '@/common/constants';
 import { MsgLogRepository, WalletRepository } from '@/database/repository';
 import { Command } from '../constants/command';
+import { SceneEnum } from '../enums/scene.enum';
 import { Context } from '../interfaces/context.interface';
-import { TOKEN_ADDRESS } from '@/common/constants';
-import { OneInchTokenService } from '@/1inch/1inch-token.service';
-import { isAddress } from 'viem';
-import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
 import { BalanceScreen } from '../screens/balance.screen';
-import { BUYTOKEN_CUSTOM_SCENE, SELLTOKEN_CUSTOM_SCENE, SET_SLIPPAGE_SCENE } from '../constants/scene';
 import { SwapService } from '../swap.service';
 import { TokenService } from '../token.service';
-import { cleanScene } from '../utils/scene';
 import { callbackButtonDataSchema } from '../types/callback-button-data';
+import { cleanScene } from '../utils/scene';
 
 @Injectable()
 export class ProcessCallbackQueryUseCase {
@@ -56,7 +56,7 @@ export class ProcessCallbackQueryUseCase {
         return;
       }
       case Command.BUYTOKEN_CUSTOM:
-        await ctx.scene.enter(BUYTOKEN_CUSTOM_SCENE, { fromMsg: message });
+        await ctx.scene.enter(SceneEnum.BUYTOKEN_CUSTOM_SCENE, { fromMsg: message });
         break;
       case Command.CANCEL:
         await this.cleanAndLeaveScene(ctx);
@@ -75,10 +75,10 @@ export class ProcessCallbackQueryUseCase {
         return;
       }
       case Command.SELLTOKEN_X:
-        await ctx.scene.enter(SELLTOKEN_CUSTOM_SCENE, { fromMsg: message });
+        await ctx.scene.enter(SceneEnum.SELLTOKEN_CUSTOM_SCENE, { fromMsg: message });
         return;
       case Command.SLIPPAGE:
-        await ctx.scene.enter(SET_SLIPPAGE_SCENE, { fromMsg: message });
+        await ctx.scene.enter(SceneEnum.SET_SLIPPAGE_SCENE, { fromMsg: message });
         return;
     }
   }

@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createEVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { parseUnits } from 'ethers';
-import { MAIN_CHAIN_ID, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
+import { MAIN_CHAIN_ID } from '@/common/constants';
 import { OnStatusUpdate, Swap, SwapConfig } from '@/common/interfaces/swap.interface';
 import { ViemPublicClient } from '@/common/providers';
 import { getEthersProvider } from '@/common/utils/ethers-adapter';
@@ -9,6 +9,7 @@ import { VIEM_PUBLIC_CLIENT } from '@/common/constants/provider.constant';
 import { OKXClient } from './core/okx-client';
 import { toBaseUnits } from './utils/units';
 import { OKX_NATIVE_TOKEN_ADDRESS } from './okx.constant';
+import { env } from '@/env/env';
 
 @Injectable()
 export class OkxSwapService implements Swap {
@@ -32,7 +33,7 @@ export class OkxSwapService implements Swap {
 
     const amount = parseUnits(amountToSwap, fromTokenDecimals).toString();
 
-    onStatusUpdate?.('swapping');
+    await onStatusUpdate?.('swapping');
 
     this.logger.log(`Executing swap at: ${new Date().toISOString()}`);
     await okxClient.dex.executeSwap({
@@ -42,6 +43,8 @@ export class OkxSwapService implements Swap {
       amount,
       slippage: `${slippage / 100}`,
       userWalletAddress: evmWallet.address,
+      feePercent: '0.01',
+      fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
     });
   }
 
@@ -52,7 +55,8 @@ export class OkxSwapService implements Swap {
     amount: string,
     onStatusUpdate?: OnStatusUpdate,
   ) {
-    onStatusUpdate?.('approving');
+    await onStatusUpdate?.('approving');
+    this.logger.log('Approving token...');
 
     const chainId = `${MAIN_CHAIN_ID}`;
     const rawAmount = toBaseUnits(amount, tokenDecimals);
@@ -64,11 +68,13 @@ export class OkxSwapService implements Swap {
     });
 
     if ('alreadyApproved' in result) {
-      onStatusUpdate?.('already-approved');
+      this.logger.log('Token already approved');
+      await onStatusUpdate?.('already-approved');
       return;
     }
 
-    onStatusUpdate?.('approved');
+    this.logger.log('Token approved');
+    await onStatusUpdate?.('approved');
   }
 
   private initializeOkxClient(privateKey: string) {

@@ -10,6 +10,7 @@ import {
 } from '@okx-dex/okx-dex-sdk';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
 import { SwapExecutor } from '../interfaces/swap-executor.interface';
+import { Logger } from '@nestjs/common';
 
 // ERC20 ABI for approval
 const ERC20_ABI = [
@@ -36,6 +37,7 @@ const ERC20_ABI = [
 ];
 
 export class EVMApproveExecutor implements SwapExecutor {
+  private readonly logger = new Logger(EVMApproveExecutor.name);
   private readonly provider: ethers.Provider;
   private readonly DEFAULT_GAS_MULTIPLIER = BigInt(150); // 1.5x
   private readonly httpClient: HTTPClient;
@@ -81,7 +83,7 @@ export class EVMApproveExecutor implements SwapExecutor {
 
     try {
       // Execute the approval transaction
-      const result = await this.executeApprovalTransaction(tokenAddress, dexContractAddress, amount);
+      const result = await this.executeApprovalTransaction(tokenAddress, dexContractAddress);
 
       return { transactionHash: result.hash };
     } catch (error) {
@@ -112,22 +114,23 @@ export class EVMApproveExecutor implements SwapExecutor {
     }
   }
 
-  private async executeApprovalTransaction(tokenAddress: string, spenderAddress: string, amount: string) {
+  private async executeApprovalTransaction(tokenAddress: string, spenderAddress: string) {
     if (!this.config.evm?.wallet) {
       throw new Error('EVM wallet required');
     }
 
+    const amount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff').toString();
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.config.evm.wallet);
 
     let retryCount = 0;
     while (retryCount < (this.networkConfig.maxRetries || 3)) {
       try {
-        console.log('Sending approval transaction...');
+        this.logger.log('Sending approval transaction...');
         const tx = await tokenContract.approve(spenderAddress, amount, {
           gasLimit: BigInt(100000), // Safe default for approvals
         });
 
-        console.log('Waiting for transaction confirmation...');
+        this.logger.log('Waiting for transaction confirmation...');
         return await tx.wait();
       } catch (error) {
         retryCount++;

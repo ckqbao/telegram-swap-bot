@@ -12,6 +12,7 @@ export const Command = {
   BUYTOKEN_CUSTOM: 'buytoken_custom',
   CANCEL: 'cancel',
   CREATE_WALLET: 'create_wallet',
+  DELETE_WALLET: 'delete_wallet',
   DISMISS_MESSAGE: 'dismiss_message',
   DUMMY: 'dummy',
   IMPORT_WALLET: 'import_wallet',

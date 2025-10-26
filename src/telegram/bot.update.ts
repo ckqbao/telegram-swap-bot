@@ -1,16 +1,20 @@
-import { Command, Ctx, Message, On, Start, Update } from 'nestjs-telegraf';
-import { Context } from './interfaces/context.interface';
-import { BotService } from './bot.service';
+import { UseInterceptors } from '@nestjs/common';
+import { User } from '@telegraf/types';
+import { Ctx, Message, On, Start, Update } from 'nestjs-telegraf';
 import {
   Update as TgUpdate,
   Message as TgMessage,
   CallbackQuery as TgCallbackQuery,
 } from 'telegraf/typings/core/types/typegram';
+import { BotService } from './bot.service';
+import { Command } from './decorator/command.decorator';
 import { CtxUser } from './decorator/context-user.decorator';
+import { BotCommandEnum } from './enums/bot-command.enum';
+import { SceneEnum } from './enums/scene.enum';
+import { Context } from './interfaces/context.interface';
+import { BotCommandInterceptor } from './interceptors/bot-command.interceptor';
 import { ProcessCallbackQueryUseCase } from './use-cases/process-callback-query.use-case';
 import { ProcessMessageTextUseCase } from './use-cases/process-message-text.use-case';
-import { SET_MAIN_WALLET_SCENE, WALLET_SETTINGS_SCENE } from './constants/scene';
-import { User } from '@telegraf/types';
 
 @Update()
 export class BotUpdate {
@@ -21,23 +25,39 @@ export class BotUpdate {
   ) {}
 
   @Start()
-  onStart(@Ctx() ctx: Context) {
-    return this.botService.start(ctx);
+  @UseInterceptors(BotCommandInterceptor)
+  async onStart(@Ctx() ctx: Context) {
+    await this.botService.start(ctx);
   }
 
-  @Command('setmycommands')
+  @Command(BotCommandEnum.DELETE_WALLET)
+  @UseInterceptors(BotCommandInterceptor)
+  async onDeleteWallet(@Ctx() ctx: Context) {
+    await ctx.scene.enter(SceneEnum.DELETE_WALLET_SCENE);
+  }
+
+  @Command(BotCommandEnum.SET_MY_COMMANDS)
+  @UseInterceptors(BotCommandInterceptor)
   async onSetCommands() {
-    return this.botService.setMyCommands();
+    await this.botService.setMyCommands();
   }
 
-  @Command('setmainwallet')
+  @Command(BotCommandEnum.SET_MAIN_WALLET)
+  @UseInterceptors(BotCommandInterceptor)
   async onSetMainWallet(@Ctx() ctx: Context) {
-    await ctx.scene.enter(SET_MAIN_WALLET_SCENE);
+    await ctx.scene.enter(SceneEnum.SET_MAIN_WALLET_SCENE);
   }
 
-  @Command('wallet')
+  @Command(BotCommandEnum.WALLET)
+  @UseInterceptors(BotCommandInterceptor)
   async onSetupWallet(@Ctx() ctx: Context) {
-    await ctx.scene.enter(WALLET_SETTINGS_SCENE);
+    await ctx.scene.enter(SceneEnum.WALLET_SETTINGS_SCENE);
+  }
+
+  @Command(BotCommandEnum.WALLETS)
+  @UseInterceptors(BotCommandInterceptor)
+  async onGetWallets(@Ctx() ctx: Context, @CtxUser() user: User) {
+    await this.botService.getWallets(ctx, user.id);
   }
 
   @On('text')

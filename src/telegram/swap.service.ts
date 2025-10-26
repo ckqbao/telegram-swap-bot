@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
-import { formatUnits, parseUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
 import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
 import { MsgLogRepository, PreferenceRepository, WalletRepository } from '@/database/repository';
@@ -37,7 +37,7 @@ export class SwapService {
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
     const messages: Message.TextMessage[] = [];
     try {
-      const now = Date.now();
+      let swapStartedAt = 0;
       await this.swapProviderService.performSwap(
         {
           privateKey,
@@ -48,15 +48,15 @@ export class SwapService {
           slippage: preference.slippage,
         },
         async (status) => {
+          if (status === 'swapping') swapStartedAt = Date.now();
           await this.cleanMessages(msg.chat.id, messages);
           const statusCaption = this.swapScreen.buildStatusCaption(status);
           const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, { parse_mode: 'HTML' });
           messages.push(message);
         },
       );
-      console.log(`Buy token took ${Date.now() - now}ms`);
       await this.cleanMessages(msg.chat.id, messages);
-      const successCaption = this.swapScreen.buildCaption(amount, NATIVE_TOKEN, 'buy');
+      const successCaption = this.swapScreen.buildCaption(amount, NATIVE_TOKEN, 'buy', Date.now() - swapStartedAt);
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
         parse_mode: 'HTML',
         reply_markup: { inline_keyboard: buildCloseKeyboard() },
@@ -96,7 +96,7 @@ export class SwapService {
     const amount = formatUnits((balance * BigInt(percent)) / 100n, tokenInfo.decimals);
     const messages: Message.TextMessage[] = [];
     try {
-      const now = Date.now();
+      let swapStartedAt = 0;
       await this.swapProviderService.performSwap(
         {
           privateKey,
@@ -107,15 +107,15 @@ export class SwapService {
           slippage: preference.slippage,
         },
         async (status) => {
+          if (status === 'swapping') swapStartedAt = Date.now();
           await this.cleanMessages(msg.chat.id, messages);
           const statusCaption = this.swapScreen.buildStatusCaption(status);
           const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, { parse_mode: 'HTML' });
           messages.push(message);
         },
       );
-      console.log(`Sell token took ${Date.now() - now}ms`);
       await this.cleanMessages(msg.chat.id, messages);
-      const successCaption = this.swapScreen.buildCaption(amount, tokenInfo.symbol, 'sell');
+      const successCaption = this.swapScreen.buildCaption(amount, tokenInfo.symbol, 'sell', Date.now() - swapStartedAt);
       await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
         parse_mode: 'HTML',
         reply_markup: { inline_keyboard: buildCloseKeyboard() },

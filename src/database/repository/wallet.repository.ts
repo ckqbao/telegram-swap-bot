@@ -25,21 +25,16 @@ export class WalletRepository {
     return wallet;
   }
 
-  getByAddresses(addresses: string[]): Promise<Wallet[]> {
+  async getByAddresses(addresses: string[]): Promise<Wallet[]> {
     return this.walletModel.find({ address: { $in: addresses } }).exec();
   }
 
   async getOrCreateWallet(createWalletDto: CreateWalletDto): Promise<Wallet> {
     let wallet = await this.walletModel.findOne({ address: createWalletDto.address }).exec();
     if (!wallet) {
-      wallet = await this.walletModel.create(createWalletDto);
+      const mainWallet = await this.walletModel.findOne({ isMain: true, userId: createWalletDto.userId }).exec();
+      wallet = await this.walletModel.create({ ...createWalletDto, isMain: !mainWallet });
     }
-    return wallet;
-  }
-
-  async getMainWallet() {
-    const wallet = await this.walletModel.findOne({ isMain: true }).exec();
-    if (!wallet) throw new NotFoundException(`No main wallet found`);
     return wallet;
   }
 
@@ -53,5 +48,9 @@ export class WalletRepository {
     const wallet = await this.walletModel.findOne({ userId, isMain: true }).exec();
     if (!wallet) throw new NotFoundException(`No main wallet found for user ${userId}`);
     return wallet.privateKey;
+  }
+
+  async deleteByAddress(address: string) {
+    await this.walletModel.deleteOne({ address }).exec();
   }
 }

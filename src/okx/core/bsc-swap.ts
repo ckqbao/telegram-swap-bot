@@ -1,8 +1,10 @@
 import { ethers, TransactionReceipt } from 'ethers';
 import { SwapParams, SwapResponseData, SwapResult, ChainConfig, OKXConfig } from '@okx-dex/okx-dex-sdk';
 import { SwapExecutor } from '../interfaces/swap-executor.interface';
+import { Logger } from '@nestjs/common';
 
-export class BscSwap implements SwapExecutor {
+export class BscSwapExecutor implements SwapExecutor {
+  private readonly logger = new Logger(BscSwapExecutor.name);
   private readonly provider: ethers.Provider;
   private readonly DEFAULT_GAS_MULTIPLIER = BigInt(150); // 1.5x
 
@@ -45,7 +47,7 @@ export class BscSwap implements SwapExecutor {
     let retryCount = 0;
     while (retryCount < (this.networkConfig.maxRetries || 3)) {
       try {
-        console.log('Preparing transaction...');
+        this.logger.log('Preparing transaction...');
         const gasMultiplier = BigInt(500); // 5x standard multiplier
 
         // Get current nonce
@@ -66,34 +68,36 @@ export class BscSwap implements SwapExecutor {
           // maxPriorityFeePerGas: (priorityFee * gasMultiplier) / BigInt(100),
         };
 
-        console.log('Transaction details:', {
-          to: transaction.to,
-          value: transaction.value,
-          nonce: transaction.nonce,
-          gasLimit: transaction.gasLimit.toString(),
-          // maxFeePerGas: transaction.maxFeePerGas.toString(),
-          // maxPriorityFeePerGas: transaction.maxPriorityFeePerGas.toString(),
-        });
+        this.logger.log(
+          `Transaction details: ${JSON.stringify({
+            to: transaction.to,
+            value: transaction.value,
+            nonce: transaction.nonce,
+            gasLimit: transaction.gasLimit.toString(),
+            // maxFeePerGas: transaction.maxFeePerGas.toString(),
+            // maxPriorityFeePerGas: transaction.maxPriorityFeePerGas.toString(),
+          })}`,
+        );
 
-        console.log('Sending transaction...');
+        this.logger.log('Sending transaction...');
         const response = await this.config.evm.wallet.sendTransaction(transaction);
-        console.log('Transaction sent! Hash:', response.hash);
+        this.logger.log(`Transaction sent! Hash: ${response.hash}`);
 
         // Wait a bit before checking status to allow transaction to be mined
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        // await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        console.log('Waiting for transaction confirmation...');
+        this.logger.log('Waiting for transaction confirmation...');
         try {
           // Poll for transaction status
           let receipt: TransactionReceipt | null = null;
           let attempts = 0;
-          const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds total
+          const maxAttempts = 30; // 30 attempts * 0.5 seconds = 15 seconds total
 
           while (attempts < maxAttempts) {
             receipt = await this.provider.getTransactionReceipt(response.hash);
 
             if (receipt) {
-              console.log('Transaction confirmed! Block number:', receipt.blockNumber);
+              this.logger.verbose(`Transaction confirmed! Block number: ${receipt.blockNumber}`);
               return receipt;
             }
 
@@ -102,12 +106,12 @@ export class BscSwap implements SwapExecutor {
             if (!tx) {
               // Check if we're on a different network than expected
               const network = await this.provider.getNetwork();
-              console.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
+              this.logger.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
               throw new Error('Transaction dropped - check network and gas prices');
             }
 
-            console.log(`Transaction still pending... (attempt ${attempts + 1}/${maxAttempts})`);
-            await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds between checks
+            this.logger.log(`Transaction still pending... (attempt ${attempts + 1}/${maxAttempts})`);
+            await new Promise((resolve) => setTimeout(resolve, 500)); // Wait 0.5 seconds between checks
             attempts++;
           }
 
@@ -133,7 +137,7 @@ export class BscSwap implements SwapExecutor {
         }
 
         const delay = 2000 * retryCount;
-        console.log(`Retrying in ${delay}ms...`);
+        this.logger.log(`Retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }

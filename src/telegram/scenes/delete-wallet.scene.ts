@@ -1,34 +1,32 @@
 import { Inject, UseFilters } from '@nestjs/common';
 import { User } from '@telegraf/types';
 import { Ctx, On, Wizard, WizardStep } from 'nestjs-telegraf';
-import { Markup } from 'telegraf';
 import { CallbackQuery, Update } from 'telegraf/typings/core/types/typegram';
 
-import { WalletRepository } from '@/database/repository';
-
 import { BaseScene } from './base.scene';
-import { Command } from '../constants/command';
 import { SceneEnum } from '../enums/scene.enum';
 import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { Context } from '../interfaces/context.interface';
-import { buildCloseKeyboard } from '../utils/inline-keyboard';
+import { WalletRepository } from '@/database/repository';
+import { Markup } from 'telegraf';
 import { CtxUser } from '../decorator/context-user.decorator';
+import { buildCloseKeyboard } from '../utils/inline-keyboard';
+import { Command } from '../constants/command';
 
-enum SetMainWalletSteps {
+enum DeleteWalletSteps {
   ENTER,
-  SET_MAIN_WALLET,
+  DELETE_WALLET,
 }
 
-@Wizard(SceneEnum.SET_MAIN_WALLET_SCENE)
+@Wizard(SceneEnum.DELETE_WALLET_SCENE)
 @UseFilters(TelegrafExceptionFilter)
-export class SetMainWalletScene extends BaseScene {
+export class DeleteWalletScene extends BaseScene {
   @Inject()
-  private walletRepository: WalletRepository;
+  private readonly walletRepository: WalletRepository;
 
-  @WizardStep(SetMainWalletSteps.ENTER)
+  @WizardStep(DeleteWalletSteps.ENTER)
   async onSceneEnter(@Ctx() ctx: Context, @CtxUser() user: User) {
     const wallets = await this.walletRepository.getByUserId(user.id);
-
     if (!wallets.length) {
       await ctx.reply('You have no wallets', {
         reply_markup: {
@@ -39,7 +37,7 @@ export class SetMainWalletScene extends BaseScene {
     }
 
     const message = await ctx.reply(
-      '⚙️ Set main wallet',
+      '🔒 Delete Wallet',
       Markup.inlineKeyboard(
         [
           ...wallets.map(({ address, name }) => Markup.button.callback(name, address)),
@@ -53,22 +51,18 @@ export class SetMainWalletScene extends BaseScene {
   }
 
   @On('callback_query')
-  @WizardStep(SetMainWalletSteps.SET_MAIN_WALLET)
-  async onSetMainWallet(@Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> }) {
+  @WizardStep(DeleteWalletSteps.DELETE_WALLET)
+  async onDeleteWallet(@Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> }) {
     const { data } = ctx.update.callback_query;
-
-    if (!ctx.from || !data) {
-      return this.showUnexpectedError(ctx);
-    }
 
     if (data === Command.CANCEL) {
       return this.abortScene(ctx);
     }
 
-    const wallet = await this.walletRepository.getByAddress(data);
-    await this.walletRepository.setMainWallet(wallet._id);
+    const address = data;
+    await this.walletRepository.deleteByAddress(data);
     await ctx.scene.leave();
-    await ctx.reply('Main wallet set successfully.', {
+    await ctx.reply(`Wallet ${address} has been deleted successfully.`, {
       reply_markup: { inline_keyboard: buildCloseKeyboard() },
     });
   }

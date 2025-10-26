@@ -1,3 +1,4 @@
+import { capitalize } from 'lodash';
 import { Injectable } from '@nestjs/common';
 import { Screen } from '../interfaces/screen.interface';
 import { SwapStatus } from '@/common/interfaces/swap.interface';
@@ -6,12 +7,8 @@ import { SwapStatus } from '@/common/interfaces/swap.interface';
 export class SwapScreen implements Screen {
   constructor() {}
 
-  buildCaption(amount: string, tokenSymbol: string, swapAction: 'buy' | 'sell') {
-    if (swapAction === 'buy') {
-      return `Buy ${amount} ${tokenSymbol} succeed`;
-    } else {
-      return `Sell ${amount} ${tokenSymbol} succeed`;
-    }
+  buildCaption(amount: string, tokenSymbol: string, swapAction: 'buy' | 'sell', totalSwapDuration: number) {
+    return `${capitalize(swapAction)} ${amount} ${tokenSymbol} succeed. Total swap duration: ${totalSwapDuration} ms`;
   }
 
   buildFailedCaption(amount: string, tokenSymbol: string, swapAction: 'buy' | 'sell') {

@@ -14,6 +14,7 @@ if (result.parsed && !result.error) {
 
 export const envSchema = z.object({
   DATABASE_URL: z.string(),
+  DEV_WALLET_ADDRESS: z.string(),
   JUPITER_API_URL: z.string().default('https://lite-api.jup.ag'),
   ONE_INCH_API_KEY: z.string(),
   ONE_INCH_BASE_URL: z.string().default('https://api.1inch.com'),

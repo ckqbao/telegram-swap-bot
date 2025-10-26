@@ -7,21 +7,27 @@ import { isHex } from 'viem';
 import { WalletRepository } from '@/database/repository/wallet.repository';
 
 import { BaseScene } from './base.scene';
-import { WALLET_SETTINGS_SCENE } from '../constants/scene';
-import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { Command } from '../constants/command';
-import { buildCancelKeyboard, buildCloseKeyboard, buildInlineKeyboard } from '../utils/inline-keyboard';
-import { cleanScene } from '../utils/scene';
+import { SceneEnum } from '../enums/scene.enum';
+import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { Context } from '../interfaces/context.interface';
 import { callbackButtonDataSchema } from '../types/callback-button-data';
+import { buildCancelKeyboard, buildCloseKeyboard, buildInlineKeyboard } from '../utils/inline-keyboard';
 
-@Wizard(WALLET_SETTINGS_SCENE)
+enum WalletSettingsSteps {
+  ENTER,
+  SETUP_WALLET,
+  NAME_WALLET,
+  ENTER_PRIVATE_KEY,
+}
+
+@Wizard(SceneEnum.WALLET_SETTINGS_SCENE)
 @UseFilters(TelegrafExceptionFilter)
 export class WalletSettingsScene extends BaseScene {
   @Inject()
   private readonly walletRepository: WalletRepository;
 
-  @WizardStep(1)
+  @WizardStep(WalletSettingsSteps.ENTER)
   async onSceneEnter(@Ctx() ctx: Context) {
     const message = await ctx.reply('⚙️ Wallet Setup', {
       reply_markup: {
@@ -41,21 +47,29 @@ export class WalletSettingsScene extends BaseScene {
   }
 
   @On('callback_query')
-  @WizardStep(2)
+  @WizardStep(WalletSettingsSteps.SETUP_WALLET)
   async onSetupWallet(@Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> }) {
     const { data } = ctx.update.callback_query;
     const parsedData = callbackButtonDataSchema.parse(JSON.parse(data));
-    if (parsedData.command === Command.CANCEL) {
-      return this.abortScene(ctx);
+
+    switch (parsedData.command) {
+      case Command.CANCEL:
+        return this.abortScene(ctx);
+      case Command.CREATE_WALLET:
+      case Command.IMPORT_WALLET: {
+        ctx.scene.state = { ...ctx.scene.state, setup: parsedData.command };
+        const message = await ctx.reply('⚙️ Name your wallet', { reply_markup: { force_reply: true } });
+        this.addMessageToState(ctx, message);
+        ctx.wizard.next();
+        break;
+      }
+      default:
+        return await this.abortScene(ctx);
     }
-    ctx.scene.state = { ...ctx.scene.state, setup: parsedData.command };
-    const message = await ctx.reply('⚙️ Name your wallet', { reply_markup: { force_reply: true } });
-    this.addMessageToState(ctx, message);
-    ctx.wizard.next();
   }
 
   @On('text')
-  @WizardStep(3)
+  @WizardStep(WalletSettingsSteps.NAME_WALLET)
   async onNameWallet(@Ctx() ctx: Context, @Message() msg: TgMessage.TextMessage) {
     this.addMessageToState(ctx, msg);
     if (!ctx.from) {
@@ -90,7 +104,6 @@ export class WalletSettingsScene extends BaseScene {
         ctx.scene.state = { ...ctx.scene.state, name: msg.text };
         const message = await ctx.reply('💡 Enter your private key', { reply_markup: { force_reply: true } });
         this.addMessageToState(ctx, message);
-        console.log('🚀 ~ WalletSettingsScene ~ onNameWallet ~ ctx.scene.state:', ctx.scene.state['messages']);
         ctx.wizard.next();
         break;
       }
@@ -101,7 +114,7 @@ export class WalletSettingsScene extends BaseScene {
   }
 
   @On('text')
-  @WizardStep(4)
+  @WizardStep(WalletSettingsSteps.ENTER_PRIVATE_KEY)
   async onEnterPrivateKey(@Ctx() ctx: Context, @Message() msg: TgMessage.TextMessage) {
     this.addMessageToState(ctx, msg);
     if (!ctx.from) {
@@ -111,14 +124,13 @@ export class WalletSettingsScene extends BaseScene {
     const address = this.getWalletAddress(msg.text);
     if (!address) {
       await ctx.reply('Invalid private key');
-      return ctx.scene.leave();
+      return await ctx.scene.leave();
     }
     await this.walletRepository.getOrCreateWallet({ address, name, privateKey: msg.text, userId: ctx.from.id });
-    await cleanScene(ctx);
+    await ctx.scene.leave();
     await ctx.reply('Wallet imported successfully.', {
       reply_markup: { inline_keyboard: buildCloseKeyboard() },
     });
-    return ctx.scene.leave();
   }
 
   private getWalletAddress(privateKey: string) {

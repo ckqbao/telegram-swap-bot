@@ -1,24 +1,29 @@
 import { Inject, UseFilters } from '@nestjs/common';
 import { Ctx, Message, On, Wizard, WizardStep } from 'nestjs-telegraf';
-import { WizardContext } from 'telegraf/typings/scenes';
 import { CallbackQuery, Message as TgMessage, Update } from 'telegraf/typings/core/types/typegram';
 
-import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { BaseScene } from './base.scene';
-import { BUYTOKEN_CUSTOM_SCENE } from '../constants/scene';
 import { BUY_X_BNB_TEXT } from '../bot.opts';
+import { SceneEnum } from '../enums/scene.enum';
+import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
+import { Context } from '../interfaces/context.interface';
 import { SwapService } from '../swap.service';
 import { buildCancelKeyboard } from '../utils/inline-keyboard';
 import { cleanScene } from '../utils/scene';
 
-@Wizard(BUYTOKEN_CUSTOM_SCENE)
+enum BuyTokenCustomSteps {
+  ENTER,
+  BUY_TOKEN,
+}
+
+@Wizard(SceneEnum.BUYTOKEN_CUSTOM_SCENE)
 @UseFilters(TelegrafExceptionFilter)
 export class BuyTokenCustomScene extends BaseScene {
   @Inject()
   private readonly swapService: SwapService;
 
-  @WizardStep(1)
-  async onSceneEnter(@Ctx() ctx: WizardContext) {
+  @WizardStep(BuyTokenCustomSteps.ENTER)
+  async onSceneEnter(@Ctx() ctx: Context) {
     const message = await ctx.reply(BUY_X_BNB_TEXT, {
       parse_mode: 'HTML',
       reply_markup: {
@@ -30,9 +35,9 @@ export class BuyTokenCustomScene extends BaseScene {
   }
 
   @On('text')
-  @WizardStep(2)
-  async onAddress(
-    @Ctx() ctx: WizardContext & { update?: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
+  @WizardStep(BuyTokenCustomSteps.BUY_TOKEN)
+  async onBuyToken(
+    @Ctx() ctx: Context & { update?: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
     @Message() msg: TgMessage.TextMessage,
   ) {
     const { from } = ctx;

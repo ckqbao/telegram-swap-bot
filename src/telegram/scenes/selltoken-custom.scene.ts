@@ -1,26 +1,31 @@
 import { Inject, UseFilters } from '@nestjs/common';
 import { Ctx, Message, On, Wizard, WizardStep } from 'nestjs-telegraf';
-import { WizardContext } from 'telegraf/typings/scenes';
 import { CallbackQuery, Message as TgMessage, Update } from 'telegraf/typings/core/types/typegram';
 
 import { isInputAmount } from '@/common/utils/number';
 
-import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
 import { BaseScene } from './base.scene';
-import { SELLTOKEN_CUSTOM_SCENE } from '../constants/scene';
 import { SELL_X_PERCENT_TEXT } from '../bot.opts';
+import { SceneEnum } from '../enums/scene.enum';
+import { TelegrafExceptionFilter } from '../filters/telegraf-exception.filter';
+import { Context } from '../interfaces/context.interface';
 import { SwapService } from '../swap.service';
 import { buildCancelKeyboard } from '../utils/inline-keyboard';
 import { cleanScene } from '../utils/scene';
 
-@Wizard(SELLTOKEN_CUSTOM_SCENE)
+enum SellTokenCustomSteps {
+  ENTER,
+  SELL_TOKEN,
+}
+
+@Wizard(SceneEnum.SELLTOKEN_CUSTOM_SCENE)
 @UseFilters(TelegrafExceptionFilter)
 export class SellTokenCustomScene extends BaseScene {
   @Inject()
   private readonly swapService: SwapService;
 
-  @WizardStep(1)
-  async onSceneEnter(@Ctx() ctx: WizardContext) {
+  @WizardStep(SellTokenCustomSteps.ENTER)
+  async onSceneEnter(@Ctx() ctx: Context) {
     const message = await ctx.reply(SELL_X_PERCENT_TEXT, {
       parse_mode: 'HTML',
       reply_markup: {
@@ -32,9 +37,9 @@ export class SellTokenCustomScene extends BaseScene {
   }
 
   @On('text')
-  @WizardStep(2)
-  async onAddress(
-    @Ctx() ctx: WizardContext & { update?: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
+  @WizardStep(SellTokenCustomSteps.SELL_TOKEN)
+  async onSellToken(
+    @Ctx() ctx: Context & { update?: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
     @Message() msg: TgMessage.TextMessage,
   ) {
     const { from } = ctx;
