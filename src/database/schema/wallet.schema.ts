@@ -23,4 +23,10 @@ export class Wallet extends Base {
 
 export const WalletSchema = SchemaFactory.createForClass(Wallet);
 
-WalletSchema.index({ isMain: 1 }, { unique: true, partialFilterExpression: { isMain: true } });
+WalletSchema.index(
+  { userId: 1, isMain: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isMain: true },
+  },
+);
