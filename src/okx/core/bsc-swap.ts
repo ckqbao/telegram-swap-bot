@@ -32,7 +32,7 @@ export class BscSwapExecutor implements SwapExecutor {
 
     try {
       const result = await this.executeEvmTransaction(tx);
-      return this.formatSwapResult(result.hash, routerResult);
+      return this.formatSwapResult(result, routerResult);
     } catch (error) {
       console.error('Swap execution failed:', error);
       throw error;
@@ -145,7 +145,7 @@ export class BscSwapExecutor implements SwapExecutor {
     throw new Error('Max retries exceeded');
   }
 
-  private formatSwapResult(txHash: string, routerResult: any): SwapResult {
+  private formatSwapResult(txReceipt: TransactionReceipt, routerResult: any): SwapResult {
     const fromDecimals = parseInt(routerResult.fromToken.decimal);
     const toDecimals = parseInt(routerResult.toToken.decimal);
 
@@ -154,9 +154,9 @@ export class BscSwapExecutor implements SwapExecutor {
     const displayToAmount = (Number(routerResult.toTokenAmount) / Math.pow(10, toDecimals)).toFixed(6);
 
     return {
-      success: true,
-      transactionId: txHash,
-      explorerUrl: `${this.networkConfig.explorer}/${txHash}`,
+      success: txReceipt.status === 1 ? true : false,
+      transactionId: txReceipt.hash,
+      explorerUrl: `${this.networkConfig.explorer}/${txReceipt.hash}`,
       details: {
         fromToken: {
           symbol: routerResult.fromToken.tokenSymbol,

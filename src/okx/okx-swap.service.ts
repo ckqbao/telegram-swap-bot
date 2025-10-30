@@ -36,7 +36,7 @@ export class OkxSwapService implements Swap {
     await onStatusUpdate?.('swapping');
 
     this.logger.log(`Executing swap at: ${new Date().toISOString()}`);
-    await okxClient.dex.executeSwap({
+    const receipt = await okxClient.dex.executeSwap({
       chainId,
       fromTokenAddress,
       toTokenAddress,
@@ -46,6 +46,10 @@ export class OkxSwapService implements Swap {
       feePercent: '0.01',
       fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
     });
+
+    if (!receipt.success) {
+      throw new Error('Swap failed');
+    }
   }
 
   private async approveIfNeeded(
