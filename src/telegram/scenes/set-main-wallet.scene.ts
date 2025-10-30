@@ -54,19 +54,18 @@ export class SetMainWalletScene extends BaseScene {
 
   @On('callback_query')
   @WizardStep(SetMainWalletSteps.SET_MAIN_WALLET)
-  async onSetMainWallet(@Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> }) {
+  async onSetMainWallet(
+    @Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
+    @CtxUser() user: User,
+  ) {
     const { data } = ctx.update.callback_query;
-
-    if (!ctx.from || !data) {
-      return this.showUnexpectedError(ctx);
-    }
 
     if (data === Command.CANCEL) {
       return this.abortScene(ctx);
     }
 
-    const wallet = await this.walletRepository.getByAddress(data);
-    await this.walletRepository.setMainWallet(wallet._id);
+    const wallet = await this.walletRepository.getByAddress(data, user.id);
+    await this.walletRepository.setMainWallet(wallet._id, user.id);
     await ctx.scene.leave();
     await ctx.reply('Main wallet set successfully.', {
       reply_markup: { inline_keyboard: buildCloseKeyboard() },

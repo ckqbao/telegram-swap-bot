@@ -52,7 +52,10 @@ export class DeleteWalletScene extends BaseScene {
 
   @On('callback_query')
   @WizardStep(DeleteWalletSteps.DELETE_WALLET)
-  async onDeleteWallet(@Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> }) {
+  async onDeleteWallet(
+    @Ctx() ctx: Context & { update: Update.CallbackQueryUpdate<CallbackQuery.DataQuery> },
+    @CtxUser() user: User,
+  ) {
     const { data } = ctx.update.callback_query;
 
     if (data === Command.CANCEL) {
@@ -60,7 +63,7 @@ export class DeleteWalletScene extends BaseScene {
     }
 
     const address = data;
-    await this.walletRepository.deleteByAddress(data);
+    await this.walletRepository.deleteByAddress(data, user.id);
     await ctx.scene.leave();
     await ctx.reply(`Wallet ${address} has been deleted successfully.`, {
       reply_markup: { inline_keyboard: buildCloseKeyboard() },
