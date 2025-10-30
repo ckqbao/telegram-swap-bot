@@ -4,10 +4,10 @@ import { Hex, isHex } from 'viem';
 
 @Schema()
 export class Wallet extends Base {
-  @Prop({ unique: true })
+  @Prop()
   address: string;
 
-  @Prop({ unique: true, validate: isHex })
+  @Prop({ validate: isHex })
   privateKey: Hex;
 
   @Prop({ default: false })
@@ -30,3 +30,5 @@ WalletSchema.index(
     partialFilterExpression: { isMain: true },
   },
 );
+
+WalletSchema.index({ address: 1, privateKey: 1, userId: 1 }, { unique: true });
