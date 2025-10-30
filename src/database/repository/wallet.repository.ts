@@ -30,11 +30,10 @@ export class WalletRepository {
   }
 
   async getOrCreateWallet(createWalletDto: CreateWalletDto): Promise<Wallet> {
-    let wallet = await this.walletModel
-      .findOne({ address: createWalletDto.address, privateKey: createWalletDto.privateKey })
-      .exec();
+    const { address, privateKey, userId } = createWalletDto;
+    let wallet = await this.walletModel.findOne({ address, privateKey, userId }).exec();
     if (!wallet) {
-      const mainWallet = await this.walletModel.findOne({ isMain: true, userId: createWalletDto.userId }).exec();
+      const mainWallet = await this.walletModel.findOne({ isMain: true, userId }).exec();
       wallet = await this.walletModel.create({ ...createWalletDto, isMain: !mainWallet });
     }
     return wallet;
