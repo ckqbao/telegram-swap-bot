@@ -11,10 +11,10 @@ export abstract class BaseScene {
     return;
   }
 
-  @SceneLeave()
-  async onSceneLeave(ctx: Context) {
-    await cleanScene(ctx);
-  }
+  // @SceneLeave()
+  // async onSceneLeave(ctx: Context) {
+  //   await cleanScene(ctx);
+  // }
 
   addMessageToState(ctx: Context, msg: Message.TextMessage) {
     const { messages = [] } = ctx.scene.state as { messages?: Message.TextMessage[] };

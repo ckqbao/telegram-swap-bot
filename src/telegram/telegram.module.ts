@@ -19,7 +19,7 @@ import { OkxModule } from '@/okx/okx.module';
 import { OkxSwapService } from '@/okx/okx-swap.service';
 import * as scenes from './scenes';
 import * as screens from './screens';
-import { BotCommandInterceptor } from './interceptors/bot-command.interceptor';
+import { BotCommandService } from './services/bot-command.service';
 
 const sceneProviders: Provider[] = Object.values(scenes);
 const screenProviders: Provider[] = Object.values(screens);
@@ -44,8 +44,8 @@ const screenProviders: Provider[] = Object.values(screens);
       provide: SwapProviderService,
       useClass: OkxSwapService,
     },
-    BotCommandInterceptor,
     BotService,
+    BotCommandService,
     BotUpdate,
     SwapService,
     TokenService,

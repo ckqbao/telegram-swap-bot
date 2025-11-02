@@ -1,4 +1,4 @@
-import { Inject, UseFilters, UseInterceptors } from '@nestjs/common';
+import { Inject, UseFilters } from '@nestjs/common';
 import { Command, Ctx, Message, On, Wizard, WizardStep } from 'nestjs-telegraf';
 import { Message as TgMessage } from 'telegraf/typings/core/types/typegram';
 
@@ -13,7 +13,6 @@ import { Context } from '../interfaces/context.interface';
 import { TokenService } from '../token.service';
 import { buildCancelKeyboard } from '../utils/inline-keyboard';
 import { BotCommandEnum } from '../enums/bot-command.enum';
-import { BotCommandInterceptor } from '../interceptors/bot-command.interceptor';
 
 enum SetSlippageSteps {
   ENTER,
@@ -59,7 +58,6 @@ export class SetSlippageScene extends BaseScene {
   }
 
   @Command(BotCommandEnum.WALLET)
-  @UseInterceptors(BotCommandInterceptor)
   async onSetupWallet(@Ctx() ctx: Context) {
     await ctx.scene.enter(SceneEnum.WALLET_SETTINGS_SCENE);
   }

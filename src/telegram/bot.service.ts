@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
-import { Telegraf } from 'telegraf';
+import { Markup, Telegraf } from 'telegraf';
 import { WelcomeScreen } from './screens/welcome.screen';
 import { Context } from './interfaces/context.interface';
 import { WalletsScreen } from './screens';
-import { buildCloseKeyboard } from './utils/inline-keyboard';
+import { buildCloseKeyboard, buildInlineKeyboard } from './utils/inline-keyboard';
 
 @Injectable()
 export class BotService {
@@ -20,7 +20,11 @@ export class BotService {
     await this.bot.telegram.sendMessage(msg.chat.id, caption, {
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: buildCloseKeyboard(),
+        inline_keyboard: [
+          [Markup.button.callback('💰 Wallets', 'wallets')],
+          ...buildInlineKeyboard([[{ text: '💰 Wallets', command: 'wallets' }]]),
+          ...buildCloseKeyboard(),
+        ],
       },
     });
   }
