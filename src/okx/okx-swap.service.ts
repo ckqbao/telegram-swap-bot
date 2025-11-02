@@ -31,6 +31,8 @@ export class OkxSwapService implements Swap {
       await this.approveIfNeeded(okxClient, fromTokenAddress, fromTokenDecimals, amountToSwap, onStatusUpdate);
     }
 
+    if (config.approveOnly) return;
+
     const amount = parseUnits(amountToSwap, fromTokenDecimals).toString();
 
     await onStatusUpdate?.('swapping');

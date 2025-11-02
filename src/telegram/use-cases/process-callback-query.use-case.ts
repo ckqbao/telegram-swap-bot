@@ -40,6 +40,9 @@ export class ProcessCallbackQueryUseCase {
     if (!command) return;
 
     switch (command) {
+      case Command.APPROVE_TOKEN:
+        await this.swapService.approveToken(message, user.id);
+        return;
       case Command.BALANCE:
         await this.getBalance(message, user);
         return;

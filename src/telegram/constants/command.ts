@@ -1,4 +1,5 @@
 export const Command = {
+  APPROVE_TOKEN: 'approve_token',
   BALANCE: 'balance',
   BUY_GAS: 'buy_gas',
   ['BUYTOKEN_0.05']: 'buytoken_0.05',

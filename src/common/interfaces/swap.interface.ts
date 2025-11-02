@@ -19,6 +19,7 @@ export type SwapConfig = {
   deadline?: number;
   approvalStrategy?: ApprovalStrategy; // Default: 'unlimited'
   approvalMultiplier?: number; // For 'multiple' strategy, default: 100x
+  approveOnly?: boolean;
 };
 
 export interface Swap {
