@@ -43,18 +43,18 @@ export class TokenInfoScreen implements Screen {
       //   { text: 'Jito tip', command: Command.JITO_TIP },
       // ],
       [
+        { text: '0.03', command: Command['BUYTOKEN_0.03'] },
+        { text: '0.04', command: Command['BUYTOKEN_0.04'] },
         { text: '0.05', command: Command['BUYTOKEN_0.05'] },
+      ],
+      [
         { text: '0.06', command: Command['BUYTOKEN_0.06'] },
+        { text: '0.07', command: Command['BUYTOKEN_0.07'] },
         { text: '0.08', command: Command['BUYTOKEN_0.08'] },
       ],
       [
         { text: '0.1', command: Command['BUYTOKEN_0.1'] },
-        { text: '0.11', command: Command['BUYTOKEN_0.11'] },
         { text: '0.12', command: Command['BUYTOKEN_0.12'] },
-      ],
-      [
-        { text: '0.15', command: Command['BUYTOKEN_0.15'] },
-        { text: '0.25', command: Command['BUYTOKEN_0.25'] },
         { text: 'X BNB', command: Command.BUYTOKEN_CUSTOM },
       ],
       [{ text: '👊 Approve Token', command: Command.APPROVE_TOKEN }],
