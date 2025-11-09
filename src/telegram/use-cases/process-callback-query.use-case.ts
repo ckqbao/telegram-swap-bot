@@ -40,17 +40,20 @@ export class ProcessCallbackQueryUseCase {
     if (!command) return;
 
     switch (command) {
+      case Command.APPROVE_TOKEN:
+        await this.swapService.approveToken(message, user.id);
+        return;
       case Command.BALANCE:
         await this.getBalance(message, user);
         return;
+      case Command['BUYTOKEN_0.03']:
+      case Command['BUYTOKEN_0.04']:
       case Command['BUYTOKEN_0.05']:
       case Command['BUYTOKEN_0.06']:
+      case Command['BUYTOKEN_0.07']:
       case Command['BUYTOKEN_0.08']:
       case Command['BUYTOKEN_0.1']:
-      case Command['BUYTOKEN_0.11']:
-      case Command['BUYTOKEN_0.12']:
-      case Command['BUYTOKEN_0.15']:
-      case Command['BUYTOKEN_0.25']: {
+      case Command['BUYTOKEN_0.12']: {
         const amount = command.split('_')[1];
         await this.swapService.buyToken(message, amount, user.id);
         return;

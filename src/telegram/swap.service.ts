@@ -27,6 +27,48 @@ export class SwapService {
     private readonly swapProviderService: SwapProviderService,
   ) {}
 
+  async approveToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, userId: number) {
+    const msgLog = await this.msgLogRepository.findMsgLog({
+      msgId: msg.message_id,
+    });
+    if (!msgLog) return;
+    const { tokenAddress } = msgLog;
+    const preference = await this.preferenceRepository.getByUserId(userId);
+    const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
+    const tokenInfo = await this.oneInchTokenService.getTokenInfo(tokenAddress);
+    const amount = formatUnits(BigInt(1), tokenInfo.decimals);
+    const messages: Message.TextMessage[] = [];
+    try {
+      await this.swapProviderService.performSwap(
+        {
+          privateKey,
+          fromTokenAddress: tokenAddress,
+          fromTokenDecimals: tokenInfo.decimals,
+          toTokenAddress: this.swapProviderService.nativeTokenAddress,
+          amountToSwap: amount,
+          slippage: preference.slippage,
+          approveOnly: true,
+        },
+        async (status) => {
+          await this.cleanMessages(msg.chat.id, messages);
+          const statusCaption = this.swapScreen.buildStatusCaption(status);
+          const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buildCloseKeyboard() },
+          });
+          messages.push(message);
+        },
+      );
+    } catch (error) {
+      await this.cleanMessages(msg.chat.id, messages);
+      this.logger.error('Failed to approve token', error);
+      await this.bot.telegram.sendMessage(msg.chat.id, 'Failed to approve token', {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+      });
+    }
+  }
+
   async buyToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, amount: string, userId: number) {
     const msgLog = await this.msgLogRepository.findMsgLog({
       msgId: msg.message_id,
