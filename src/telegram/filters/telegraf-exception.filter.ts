@@ -5,6 +5,7 @@ import { Context } from '../interfaces/context.interface';
 @Catch()
 export class TelegrafExceptionFilter implements ExceptionFilter {
   async catch(exception: Error, host: ArgumentsHost): Promise<void> {
+    console.log('🚀 ~ TelegrafExceptionFilter ~ catch ~ exception:', exception);
     const telegrafHost = TelegrafArgumentsHost.create(host);
     const ctx = telegrafHost.getContext<Context>();
 

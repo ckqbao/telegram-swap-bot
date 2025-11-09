@@ -1,6 +1,13 @@
 import { Cache } from 'cache-manager';
-import { Scenes } from 'telegraf';
+import { Context as TelegrafContext, Scenes } from 'telegraf';
 
-export interface Context extends Scenes.WizardContext {
+interface Session extends Scenes.WizardSession {
+  trackedMessageId?: number;
+}
+
+export interface Context extends TelegrafContext {
   cacheManager: Cache;
+  session: Session;
+  scene: Scenes.SceneContextScene<Context, Scenes.WizardSessionData>;
+  wizard: Scenes.WizardContextWizard<Context>;
 }

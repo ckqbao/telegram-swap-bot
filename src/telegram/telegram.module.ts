@@ -4,7 +4,6 @@ import { TelegrafConfigService } from './telegraf-config.service';
 import { EnvModule } from 'src/env/env.module';
 import { EnvService } from '@/env/env.service';
 import { BotUpdate } from './bot.update';
-import { BotService } from './bot.service';
 import { JupiterModule } from '@/jupiter/jupiter.module';
 import { ProcessCallbackQueryUseCase } from './use-cases/process-callback-query.use-case';
 import { OneInchModule } from '@/1inch/1inch.module';
@@ -19,7 +18,8 @@ import { OkxModule } from '@/okx/okx.module';
 import { OkxSwapService } from '@/okx/okx-swap.service';
 import * as scenes from './scenes';
 import * as screens from './screens';
-import { BotCommandService } from './services/bot-command.service';
+import { BotCommandService } from './bot-command.service';
+import { MessageTrackerMiddleware } from './middlewares/message-tracker.middleware';
 
 const sceneProviders: Provider[] = Object.values(scenes);
 const screenProviders: Provider[] = Object.values(screens);
@@ -32,19 +32,19 @@ const screenProviders: Provider[] = Object.values(screens);
     OneInchModule,
     PcsModule,
     TelegrafModule.forRootAsync({
-      imports: [EnvModule],
-      inject: [EnvService],
+      imports: [EnvModule, TelegramModule],
+      inject: [MessageTrackerMiddleware, EnvService],
       useClass: TelegrafConfigService,
     }),
   ],
   providers: [
+    MessageTrackerMiddleware,
     ...sceneProviders,
     ...screenProviders,
     {
       provide: SwapProviderService,
       useClass: OkxSwapService,
     },
-    BotService,
     BotCommandService,
     BotUpdate,
     SwapService,
@@ -52,5 +52,6 @@ const screenProviders: Provider[] = Object.values(screens);
     ProcessCallbackQueryUseCase,
     ProcessMessageTextUseCase,
   ],
+  exports: [MessageTrackerMiddleware],
 })
 export class TelegramModule {}

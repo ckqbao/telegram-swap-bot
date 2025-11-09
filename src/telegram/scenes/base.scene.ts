@@ -1,30 +1,26 @@
-import { Command, SceneLeave } from 'nestjs-telegraf';
 import { Message } from 'telegraf/typings/core/types/typegram';
 import { buildCloseKeyboard } from '../utils/inline-keyboard';
-import { cleanScene } from '../utils/scene';
 import { Context } from '../interfaces/context.interface';
 
-export abstract class BaseScene {
-  @Command('cancel')
-  async abortScene(ctx: Context) {
-    await ctx.scene.leave();
-    return;
-  }
-
-  // @SceneLeave()
-  // async onSceneLeave(ctx: Context) {
-  //   await cleanScene(ctx);
-  // }
-
-  addMessageToState(ctx: Context, msg: Message.TextMessage) {
+export class BaseScene {
+  addSceneMessage(ctx: Context, msg: Message.TextMessage) {
     const { messages = [] } = ctx.scene.state as { messages?: Message.TextMessage[] };
     ctx.scene.state = { ...ctx.scene.state, messages: [...messages, msg] };
   }
 
-  async selectStep(ctx: Context, step: number) {
+  async deleteStepMessages(ctx: Context) {
+    const { messages = [] } = ctx.scene.state as { messages?: Message.TextMessage[] };
+    if (messages?.length) {
+      await ctx.deleteMessages(messages.map((msg) => msg.message_id));
+    }
+  }
+
+  async selectStep(ctx: Context, step: number, next: () => Promise<void>) {
     ctx.wizard.selectStep(step);
-    const wizard = ctx.wizard as any;
-    await wizard.steps[ctx.wizard.cursor](ctx);
+    const wizardStep = ctx.wizard.step;
+    if (typeof wizardStep === 'function') {
+      await wizardStep(ctx, next);
+    }
   }
 
   async showUnexpectedError(ctx: Context) {

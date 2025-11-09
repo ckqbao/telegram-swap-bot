@@ -1,7 +1,5 @@
 export enum BotCommandEnum {
-  DELETE_WALLET = 'deletewallet',
-  SET_MAIN_WALLET = 'setmainwallet',
+  START = 'start',
   SET_MY_COMMANDS = 'setmycommands',
-  WALLET = 'wallet',
   WALLETS = 'wallets',
 }

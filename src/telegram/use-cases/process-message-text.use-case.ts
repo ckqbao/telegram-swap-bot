@@ -29,12 +29,10 @@ export class ProcessMessageTextUseCase {
 
     if (!messageText) return;
 
-    if (!isAddress(messageText)) {
-      await this.bot.telegram.deleteMessage(chatId, msg.message_id);
-      return;
-    }
+    await this.bot.telegram.deleteMessage(chatId, msg.message_id);
 
-    void this.bot.telegram.deleteMessage(chatId, msg.message_id);
+    if (!isAddress(messageText)) return;
+
     const tokenAddress = messageText;
 
     const [tokenInfo, price, marketCap] = await Promise.all([

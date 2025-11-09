@@ -32,7 +32,7 @@ export class SellTokenCustomScene extends BaseScene {
         inline_keyboard: buildCancelKeyboard(),
       },
     });
-    this.addMessageToState(ctx, message);
+    this.addSceneMessage(ctx, message);
     ctx.wizard.next();
   }
 
@@ -46,7 +46,7 @@ export class SellTokenCustomScene extends BaseScene {
     const { fromMsg } = ctx.wizard.state as { fromMsg: TgMessage.TextMessage | undefined };
     if (!from || !fromMsg) return this.showUnexpectedError(ctx);
 
-    this.addMessageToState(ctx, msg);
+    this.addSceneMessage(ctx, msg);
 
     const messageText = msg.text;
 
