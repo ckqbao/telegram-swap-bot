@@ -1,5 +1,5 @@
 import { UseFilters } from '@nestjs/common';
-import { Action, Ctx, Scene, SceneEnter } from 'nestjs-telegraf';
+import { Action, Ctx, Next, Scene, SceneEnter } from 'nestjs-telegraf';
 
 import { SceneEnum } from '@/telegram/enums/scene.enum';
 import { TelegrafExceptionFilter } from '@/telegram/filters/telegraf-exception.filter';
@@ -7,14 +7,14 @@ import { Context } from '@/telegram/interfaces/context.interface';
 import { walletSettingsKeyboard } from '@/telegram/keyboards/wallet-settings.keyboard';
 import { commonButtons } from '@/telegram/buttons/common.buttons';
 import { walletButtons } from '@/telegram/buttons/wallet.buttons';
-import { replyWithTrack } from '@/telegram/utils/message';
+import { replyWithInlineKeyboardMenu } from '@/telegram/utils/message';
 
 @Scene(SceneEnum.WALLET_SETTINGS_SCENE)
 @UseFilters(TelegrafExceptionFilter)
 export class WalletSettingsScene {
   @SceneEnter()
   async onSceneEnter(@Ctx() ctx: Context) {
-    await replyWithTrack(ctx, '⚙️ Wallet Setup', walletSettingsKeyboard());
+    await replyWithInlineKeyboardMenu(ctx, '⚙️ Wallet Setup', walletSettingsKeyboard());
   }
 
   @Action(walletButtons.setupWallet.callback)
@@ -35,5 +35,10 @@ export class WalletSettingsScene {
   @Action(commonButtons.back.callback)
   async backtoMainScene(@Ctx() ctx: Context) {
     await ctx.scene.enter(SceneEnum.MAIN_SCENE);
+  }
+
+  @Action(commonButtons.close.callback)
+  async close(@Next() next: () => Promise<void>) {
+    return next();
   }
 }

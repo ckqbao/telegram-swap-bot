@@ -13,6 +13,11 @@ export class PreferenceRepository {
     return await this.preferenceModel.create({ userId });
   }
 
+  async setBuyAmounts(userId: number, buyAmounts: number[]) {
+    await this.getByUserId(userId);
+    await this.preferenceModel.updateOne({ userId }, { buyAmounts });
+  }
+
   async setSlippage(userId: number, slippage: number) {
     await this.getByUserId(userId);
     await this.preferenceModel.updateOne({ userId }, { slippage });

@@ -1,5 +1,6 @@
 export enum BotCommandEnum {
   START = 'start',
   SET_MY_COMMANDS = 'setmycommands',
-  WALLETS = 'wallets',
+  TOKEN_SETTINGS = 'token',
+  WALLET_SETTINGS = 'wallet',
 }

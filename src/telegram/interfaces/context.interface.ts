@@ -2,7 +2,12 @@ import { Cache } from 'cache-manager';
 import { Context as TelegrafContext, Scenes } from 'telegraf';
 
 interface Session extends Scenes.WizardSession {
-  trackedMessageId?: number;
+  inlineKeyboardMenuMsgId?: number;
+  dataQueryRepliedMessage?: {
+    data: string;
+    parentMsgId?: number;
+    msgId: number;
+  };
 }
 
 export interface Context extends TelegrafContext {

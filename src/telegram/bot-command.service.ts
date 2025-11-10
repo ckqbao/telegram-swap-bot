@@ -19,7 +19,8 @@ export class BotCommandService {
       await ctx.telegram.setMyCommands(
         [
           { command: BotCommandEnum.START, description: 'Open the Start Panel' },
-          { command: BotCommandEnum.WALLETS, description: 'Open the Wallet Settings Panel' },
+          { command: BotCommandEnum.TOKEN_SETTINGS, description: 'Open the Token Settings Panel' },
+          { command: BotCommandEnum.WALLET_SETTINGS, description: 'Open the Wallet Settings Panel' },
         ],
         {
           scope: {
@@ -31,7 +32,13 @@ export class BotCommandService {
     });
   }
 
-  async wallets(ctx: Context) {
+  async tokenSettings(ctx: Context) {
+    await this.process(ctx, async () => {
+      await ctx.scene.enter(SceneEnum.TOKEN_SETTINGS_SCENE);
+    });
+  }
+
+  async walletSettings(ctx: Context) {
     await this.process(ctx, async () => {
       await ctx.scene.enter(SceneEnum.WALLET_SETTINGS_SCENE);
     });
@@ -44,8 +51,15 @@ export class BotCommandService {
   }
 
   private async onBeforeCommand(ctx: Context) {
-    if (ctx.session.trackedMessageId) {
-      await ctx.deleteMessage(ctx.session.trackedMessageId);
+    const messageIds: number[] = [];
+    if (ctx.session.inlineKeyboardMenuMsgId) {
+      messageIds.push(ctx.session.inlineKeyboardMenuMsgId);
+    }
+    if (ctx.session.dataQueryRepliedMessage) {
+      messageIds.push(ctx.session.dataQueryRepliedMessage.msgId);
+    }
+    if (messageIds.length) {
+      await ctx.deleteMessages(messageIds);
     }
   }
 

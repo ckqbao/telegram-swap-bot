@@ -7,7 +7,7 @@ import { BotUpdate } from './bot.update';
 import { JupiterModule } from '@/jupiter/jupiter.module';
 import { ProcessCallbackQueryUseCase } from './use-cases/process-callback-query.use-case';
 import { OneInchModule } from '@/1inch/1inch.module';
-import { ProcessMessageTextUseCase } from './use-cases/process-message-text.use-case';
+import { ProcessTextUseCase } from './use-cases/process-text.use-case';
 import { SwapService } from './swap.service';
 import { TokenService } from './token.service';
 import { PcsModule } from '@/pcs/pcs.module';
@@ -17,12 +17,11 @@ import { CommonModule } from '@/common/common.module';
 import { OkxModule } from '@/okx/okx.module';
 import { OkxSwapService } from '@/okx/okx-swap.service';
 import * as scenes from './scenes';
-import * as screens from './screens';
 import { BotCommandService } from './bot-command.service';
-import { MessageTrackerMiddleware } from './middlewares/message-tracker.middleware';
+import { DeleteMessageMiddleware } from './middlewares/delete-message.middleware';
+import { ProcessReplyMessageUseCase } from './use-cases/process-reply-message.use-case';
 
 const sceneProviders: Provider[] = Object.values(scenes);
-const screenProviders: Provider[] = Object.values(screens);
 
 @Module({
   imports: [
@@ -33,14 +32,13 @@ const screenProviders: Provider[] = Object.values(screens);
     PcsModule,
     TelegrafModule.forRootAsync({
       imports: [EnvModule, TelegramModule],
-      inject: [MessageTrackerMiddleware, EnvService],
+      inject: [DeleteMessageMiddleware, EnvService],
       useClass: TelegrafConfigService,
     }),
   ],
   providers: [
-    MessageTrackerMiddleware,
     ...sceneProviders,
-    ...screenProviders,
+    DeleteMessageMiddleware,
     {
       provide: SwapProviderService,
       useClass: OkxSwapService,
@@ -50,8 +48,9 @@ const screenProviders: Provider[] = Object.values(screens);
     SwapService,
     TokenService,
     ProcessCallbackQueryUseCase,
-    ProcessMessageTextUseCase,
+    ProcessReplyMessageUseCase,
+    ProcessTextUseCase,
   ],
-  exports: [MessageTrackerMiddleware],
+  exports: [DeleteMessageMiddleware],
 })
 export class TelegramModule {}

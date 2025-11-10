@@ -2,15 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
-import { formatUnits } from 'viem';
+import { formatUnits, Hex } from 'viem';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
 import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
 import { MsgLogRepository, PreferenceRepository, WalletRepository } from '@/database/repository';
 import { Context } from './interfaces/context.interface';
-import { SwapScreen } from './screens/swap.screen';
 import { OneInchTokenService } from '@/1inch/1inch-token.service';
-import { buildCloseKeyboard } from './utils/inline-keyboard';
 import { SwapProviderService } from './swap-provider.service';
+import { swapFailureCaption, swapStatusCaption, swapSuccessCaption } from './captions/swap.caption';
+import { closeKeyboard } from './keyboards/common.keyboard';
 
 @Injectable()
 export class SwapService {
@@ -21,7 +21,6 @@ export class SwapService {
     private readonly msgLogRepository: MsgLogRepository,
     private readonly preferenceRepository: PreferenceRepository,
     private readonly walletRepository: WalletRepository,
-    private readonly swapScreen: SwapScreen,
     private readonly oneInchBalanceService: OneInchBalanceService,
     private readonly oneInchTokenService: OneInchTokenService,
     private readonly swapProviderService: SwapProviderService,
@@ -51,10 +50,9 @@ export class SwapService {
         },
         async (status) => {
           await this.cleanMessages(msg.chat.id, messages);
-          const statusCaption = this.swapScreen.buildStatusCaption(status);
-          const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, {
+          const message = await this.bot.telegram.sendMessage(msg.chat.id, swapStatusCaption(status), {
             parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: buildCloseKeyboard() },
+            reply_markup: closeKeyboard().reply_markup,
           });
           messages.push(message);
         },
@@ -64,17 +62,12 @@ export class SwapService {
       this.logger.error('Failed to approve token', error);
       await this.bot.telegram.sendMessage(msg.chat.id, 'Failed to approve token', {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
     }
   }
 
-  async buyToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, amount: string, userId: number) {
-    const msgLog = await this.msgLogRepository.findMsgLog({
-      msgId: msg.message_id,
-    });
-    if (!msgLog) return;
-    const { tokenAddress } = msgLog;
+  async buyToken(chatId: number, tokenAddress: Hex, amount: string, userId: number) {
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
     const messages: Message.TextMessage[] = [];
@@ -91,35 +84,31 @@ export class SwapService {
         },
         async (status) => {
           if (status === 'swapping') swapStartedAt = Date.now();
-          await this.cleanMessages(msg.chat.id, messages);
-          const statusCaption = this.swapScreen.buildStatusCaption(status);
-          const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, { parse_mode: 'HTML' });
+          await this.cleanMessages(chatId, messages);
+          const message = await this.bot.telegram.sendMessage(chatId, swapStatusCaption(status), {
+            parse_mode: 'HTML',
+          });
           messages.push(message);
         },
       );
-      await this.cleanMessages(msg.chat.id, messages);
-      const successCaption = this.swapScreen.buildCaption(amount, NATIVE_TOKEN, 'buy', Date.now() - swapStartedAt);
-      await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
+      await this.cleanMessages(chatId, messages);
+      const successCaption = swapSuccessCaption(amount, NATIVE_TOKEN, 'buy', Date.now() - swapStartedAt);
+      await this.bot.telegram.sendMessage(chatId, successCaption, {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
     } catch (error) {
-      await this.cleanMessages(msg.chat.id, messages);
+      await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to buy token', error);
-      const failedCaption = this.swapScreen.buildFailedCaption(amount, NATIVE_TOKEN, 'buy');
-      await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {
+      const failedCaption = swapFailureCaption(amount, NATIVE_TOKEN, 'buy');
+      await this.bot.telegram.sendMessage(chatId, failedCaption, {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
     }
   }
 
-  async sellToken(msg: Exclude<CallbackQuery.DataQuery['message'], undefined>, percent: number, userId: number) {
-    const msgLog = await this.msgLogRepository.findMsgLog({
-      msgId: msg.message_id,
-    });
-    if (!msgLog) return;
-    const { tokenAddress } = msgLog;
+  async sellToken(chatId: number, tokenAddress: Hex, percent: number, userId: number) {
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
     const [tokenInfo, tokenBalances] = await Promise.all([
@@ -128,9 +117,9 @@ export class SwapService {
     ]);
     const balance = Object.values(tokenBalances)[0];
     if (!balance) {
-      await this.bot.telegram.sendMessage(msg.chat.id, 'No balance for this token to sell', {
+      await this.bot.telegram.sendMessage(chatId, 'No balance for this token to sell', {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
       return;
     }
@@ -150,25 +139,26 @@ export class SwapService {
         },
         async (status) => {
           if (status === 'swapping') swapStartedAt = Date.now();
-          await this.cleanMessages(msg.chat.id, messages);
-          const statusCaption = this.swapScreen.buildStatusCaption(status);
-          const message = await this.bot.telegram.sendMessage(msg.chat.id, statusCaption, { parse_mode: 'HTML' });
+          await this.cleanMessages(chatId, messages);
+          const message = await this.bot.telegram.sendMessage(chatId, swapStatusCaption(status), {
+            parse_mode: 'HTML',
+          });
           messages.push(message);
         },
       );
-      await this.cleanMessages(msg.chat.id, messages);
-      const successCaption = this.swapScreen.buildCaption(amount, tokenInfo.symbol, 'sell', Date.now() - swapStartedAt);
-      await this.bot.telegram.sendMessage(msg.chat.id, successCaption, {
+      await this.cleanMessages(chatId, messages);
+      const successCaption = swapSuccessCaption(amount, tokenInfo.symbol, 'sell', Date.now() - swapStartedAt);
+      await this.bot.telegram.sendMessage(chatId, successCaption, {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
     } catch (error) {
-      await this.cleanMessages(msg.chat.id, messages);
+      await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to sell token', error);
-      const failedCaption = this.swapScreen.buildFailedCaption(amount, tokenInfo.symbol, 'sell');
-      await this.bot.telegram.sendMessage(msg.chat.id, failedCaption, {
+      const failedCaption = swapFailureCaption(amount, tokenInfo.symbol, 'sell');
+      await this.bot.telegram.sendMessage(chatId, failedCaption, {
         parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: buildCloseKeyboard() },
+        reply_markup: closeKeyboard().reply_markup,
       });
     }
   }

@@ -1,20 +1,21 @@
 import { Inject, UseFilters } from '@nestjs/common';
-import { Message, User } from '@telegraf/types';
+import { User } from '@telegraf/types';
 import { Action, Ctx, Message as Msg, Next, On, Wizard, WizardStep } from 'nestjs-telegraf';
+import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
-import { isHex } from 'viem';
+import { isAddress, isHex } from 'viem';
 import { SceneEnum } from '@/telegram/enums/scene.enum';
 import { Context } from '@/telegram/interfaces/context.interface';
 import { setupWalletKeyboard } from '@/telegram/keyboards/wallet-settings.keyboard';
 import { TelegrafExceptionFilter } from '@/telegram/filters/telegraf-exception.filter';
-import { replyWithTrack } from '@/telegram/utils/message';
+import { isBotCommand, replyWithDataQueryRepliedMessage, replyWithInlineKeyboardMenu } from '@/telegram/utils/message';
 import { commonButtons } from '@/telegram/buttons/common.buttons';
 import { walletButtons } from '@/telegram/buttons/wallet.buttons';
 import { WalletRepository } from '@/database/repository';
 import { CtxUser } from '@/telegram/decorator/context-user.decorator';
 import { closeKeyboard } from '@/telegram/keyboards/common.keyboard';
-import { CallbackQueryData } from '@/telegram/decorator/callback-query-data.decorator';
 import { BaseScene } from '../base.scene';
+import { CtxDataQuery } from '@/telegram/decorator/context-data-query.decorator';
 
 enum SetupWalletSteps {
   ENTER,
@@ -30,27 +31,51 @@ export class SetupWalletScene extends BaseScene {
 
   @WizardStep(SetupWalletSteps.ENTER)
   async onSceneEnter(@Ctx() ctx: Context) {
-    await replyWithTrack(ctx, '⚙️ Setup Wallet', setupWalletKeyboard());
+    await replyWithInlineKeyboardMenu(ctx, '⚙️ Setup Wallet', setupWalletKeyboard());
     return;
   }
 
   @Action(walletButtons.createWallet.callback)
   @Action(walletButtons.importWallet.callback)
-  async onSetupWallet(@Ctx() ctx: Context, @CallbackQueryData() data: string, @Next() next: () => Promise<void>) {
+  async onSetupWallet(
+    @Ctx() ctx: Context,
+    @CtxDataQuery() { data, message }: CallbackQuery.DataQuery,
+    @Next() next: () => Promise<void>,
+  ) {
     await this.deleteStepMessages(ctx);
     ctx.scene.state = { ...ctx.scene.state, method: data };
-    const msg = await ctx.reply('⚙️ Name your wallet', { reply_markup: { force_reply: true } });
+    const msg = await replyWithDataQueryRepliedMessage(ctx, data, '⚙️ Name your wallet', message?.message_id);
     this.addSceneMessage(ctx, msg);
     await this.selectStep(ctx, SetupWalletSteps.NAME_WALLET, next);
   }
 
+  @Action(commonButtons.back.callback)
+  async back(@Ctx() ctx: Context) {
+    await ctx.scene.enter(SceneEnum.WALLET_SETTINGS_SCENE);
+  }
+
+  @Action(commonButtons.close.callback)
+  async close(@Next() next: () => Promise<void>) {
+    return next();
+  }
+
   @WizardStep(SetupWalletSteps.NAME_WALLET)
   @On('text')
-  async onNameWallet(@Ctx() ctx: Context, @Msg() msg: Message.TextMessage, @CtxUser() user: User) {
+  async onNameWallet(
+    @Ctx() ctx: Context,
+    @Msg() msg: Message.TextMessage,
+    @CtxUser() user: User,
+    @Next() next: () => Promise<void>,
+  ) {
+    if (msg.text.startsWith('/')) return next();
+
     if (!msg.reply_to_message) {
+      if (isAddress(msg.text)) return next();
       await ctx.deleteMessage(msg.message_id);
       return;
     }
+
+    if (ctx.session.dataQueryRepliedMessage?.parentMsgId !== ctx.session.inlineKeyboardMenuMsgId) return next();
 
     const { method } = ctx.scene.state as { method: string };
     switch (method) {
@@ -81,7 +106,12 @@ export class SetupWalletScene extends BaseScene {
       case walletButtons.importWallet.callback: {
         ctx.scene.state = { ...ctx.scene.state, name: msg.text };
         await ctx.deleteMessages([msg.reply_to_message.message_id, msg.message_id]);
-        const privateKeyMsg = await ctx.reply('💡 Enter your private key', { reply_markup: { force_reply: true } });
+        const privateKeyMsg = await replyWithDataQueryRepliedMessage(
+          ctx,
+          method,
+          '💡 Enter your private key',
+          ctx.session.inlineKeyboardMenuMsgId,
+        );
         this.addSceneMessage(ctx, privateKeyMsg);
         ctx.wizard.next();
         return;
@@ -94,20 +124,32 @@ export class SetupWalletScene extends BaseScene {
 
   @WizardStep(SetupWalletSteps.ENTER_PRIVATE_KEY)
   @On('text')
-  async onEnterPrivateKey(@Ctx() ctx: Context, @Msg() msg: Message.TextMessage, @CtxUser() user: User) {
+  async onEnterPrivateKey(
+    @Ctx() ctx: Context,
+    @Msg() msg: Message.TextMessage,
+    @CtxUser() user: User,
+    @Next() next: () => Promise<void>,
+  ) {
+    if (isBotCommand(msg)) return next();
+
     if (!msg.reply_to_message) {
+      if (isAddress(msg.text)) return next();
       await ctx.deleteMessage(msg.message_id);
       return;
     }
+    console.log(ctx.session.dataQueryRepliedMessage?.parentMsgId, ctx.session.inlineKeyboardMenuMsgId);
+    if (ctx.session.dataQueryRepliedMessage?.parentMsgId !== ctx.session.inlineKeyboardMenuMsgId) return next();
 
     const { name } = ctx.scene.state as { name: string };
     const address = this.getWalletAddress(msg.text);
     if (!address) {
       await ctx.deleteMessages([msg.reply_to_message.message_id, msg.message_id]);
-      const invalidInputMsg = await ctx.reply('⚠︎ Invalid input, try again\n\n💡 Enter your private key', {
-        parse_mode: 'Markdown',
-        reply_markup: { force_reply: true },
-      });
+      const invalidInputMsg = await replyWithDataQueryRepliedMessage(
+        ctx,
+        walletButtons.importWallet.callback,
+        '⚠︎ Invalid input, try again\n\n💡 Enter your private key',
+        ctx.session.inlineKeyboardMenuMsgId,
+      );
       this.addSceneMessage(ctx, invalidInputMsg);
       return;
     }
@@ -117,16 +159,6 @@ export class SetupWalletScene extends BaseScene {
     await ctx.reply('Wallet imported successfully.', closeKeyboard());
     await ctx.scene.reenter();
     return;
-  }
-
-  @Action(commonButtons.back.callback)
-  async back(@Ctx() ctx: Context) {
-    await ctx.scene.enter(SceneEnum.WALLET_SETTINGS_SCENE);
-  }
-
-  @Action(commonButtons.close.callback)
-  async close(@Ctx() ctx: Context) {
-    await ctx.deleteMessage();
   }
 
   private getWalletAddress(privateKey: string) {

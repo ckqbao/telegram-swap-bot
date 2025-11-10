@@ -1,8 +1,13 @@
 import { Message } from 'telegraf/typings/core/types/typegram';
-import { buildCloseKeyboard } from '../utils/inline-keyboard';
 import { Context } from '../interfaces/context.interface';
+import { SceneLeave } from 'nestjs-telegraf';
 
 export class BaseScene {
+  @SceneLeave()
+  async onSceneLeave(ctx: Context) {
+    await this.deleteStepMessages(ctx);
+  }
+
   addSceneMessage(ctx: Context, msg: Message.TextMessage) {
     const { messages = [] } = ctx.scene.state as { messages?: Message.TextMessage[] };
     ctx.scene.state = { ...ctx.scene.state, messages: [...messages, msg] };
@@ -21,15 +26,5 @@ export class BaseScene {
     if (typeof wizardStep === 'function') {
       await wizardStep(ctx, next);
     }
-  }
-
-  async showUnexpectedError(ctx: Context) {
-    await ctx.reply('Unexpected error occured. Please try again.', {
-      reply_markup: {
-        inline_keyboard: buildCloseKeyboard(),
-      },
-    });
-    await ctx.scene.leave();
-    return;
   }
 }

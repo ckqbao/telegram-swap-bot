@@ -39,6 +39,12 @@ export class WalletRepository {
     return wallet;
   }
 
+  async getUserMainWallet(userId: number): Promise<Wallet> {
+    const wallet = await this.walletModel.findOne({ userId, isMain: true }).exec();
+    if (!wallet) throw new NotFoundException(`No main wallet found for user ${userId}`);
+    return wallet;
+  }
+
   async setMainWallet(walletId: string | Types.ObjectId, userId: number) {
     await this.walletModel.updateMany({ _id: { $ne: walletId }, userId }, { $unset: { isMain: '' } });
     await this.walletModel.updateOne({ _id: walletId, userId }, { $set: { isMain: true } }, { runValidators: true });
