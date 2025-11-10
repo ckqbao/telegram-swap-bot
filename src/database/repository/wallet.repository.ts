@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { TelegrafException } from 'nestjs-telegraf';
 
 import { Wallet } from '../schema/wallet.schema';
 import { CreateWalletDto } from '../dto/wallet.dto';
@@ -41,7 +42,7 @@ export class WalletRepository {
 
   async getUserMainWallet(userId: number): Promise<Wallet> {
     const wallet = await this.walletModel.findOne({ userId, isMain: true }).exec();
-    if (!wallet) throw new NotFoundException(`No main wallet found for user ${userId}`);
+    if (!wallet) throw new TelegrafException(`No main wallet found`);
     return wallet;
   }
 
@@ -52,8 +53,7 @@ export class WalletRepository {
   }
 
   async getMainWalletPrivateKeyForUser(userId: number) {
-    const wallet = await this.walletModel.findOne({ userId, isMain: true }).exec();
-    if (!wallet) throw new NotFoundException(`No main wallet found for user ${userId}`);
+    const wallet = await this.getUserMainWallet(userId);
     return wallet.privateKey;
   }
 

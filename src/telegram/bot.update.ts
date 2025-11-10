@@ -1,3 +1,4 @@
+import { UseFilters } from '@nestjs/common';
 import { User } from '@telegraf/types';
 import { Action, Command, Ctx, Message, On, Start, Update } from 'nestjs-telegraf';
 import { CallbackQuery, Message as TgMessage } from 'telegraf/typings/core/types/typegram';
@@ -10,8 +11,10 @@ import { BotCommandService } from './bot-command.service';
 import { ProcessCallbackQueryUseCase } from './use-cases/process-callback-query.use-case';
 import { CtxDataQuery } from './decorator/context-data-query.decorator';
 import { ProcessReplyMessageUseCase } from './use-cases/process-reply-message.use-case';
+import { TelegrafExceptionFilter } from './filters/telegraf-exception.filter';
 
 @Update()
+@UseFilters(TelegrafExceptionFilter)
 export class BotUpdate {
   constructor(
     private readonly botCommandService: BotCommandService,
@@ -41,9 +44,11 @@ export class BotUpdate {
   }
 
   @Action(commonButtons.close.callback)
-  async deleteMessage(@Ctx() ctx: Context, @CtxDataQuery() { message }: CallbackQuery.DataQuery) {
+  async onClose(@Ctx() ctx: Context, @CtxDataQuery() { message }: CallbackQuery.DataQuery) {
     await ctx.deleteMessage(message?.message_id);
-    await ctx.scene.leave();
+    if (ctx.session.inlineKeyboardMenuMsgId === message?.message_id) {
+      await ctx.scene.leave();
+    }
   }
 
   @On('text')

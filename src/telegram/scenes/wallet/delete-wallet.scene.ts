@@ -13,12 +13,19 @@ import { replyWithInlineKeyboardMenu } from '@/telegram/utils/message';
 import { deleteWalletKeyboard } from '@/telegram/keyboards/wallet-settings.keyboard';
 import { commonButtons } from '@/telegram/buttons/common.buttons';
 import { CtxDataQuery } from '@/telegram/decorator/context-data-query.decorator';
+import { isAddress } from 'viem';
 
 @Scene(SceneEnum.DELETE_WALLET_SCENE)
 @UseFilters(TelegrafExceptionFilter)
 export class DeleteWalletScene extends BaseScene {
   @Inject()
   private readonly walletRepository: WalletRepository;
+
+  @SceneEnter()
+  async onSceneEnter(@Ctx() ctx: Context, @CtxUser() user: User) {
+    const wallets = await this.walletRepository.getByUserId(user.id);
+    await replyWithInlineKeyboardMenu(ctx, '⚙️ Delete Wallet', deleteWalletKeyboard(wallets));
+  }
 
   @Action(commonButtons.back.callback)
   async back(@Ctx() ctx: Context) {
@@ -30,14 +37,14 @@ export class DeleteWalletScene extends BaseScene {
     return next();
   }
 
-  @SceneEnter()
-  async onSceneEnter(@Ctx() ctx: Context, @CtxUser() user: User) {
-    const wallets = await this.walletRepository.getByUserId(user.id);
-    await replyWithInlineKeyboardMenu(ctx, '⚙️ Delete Wallet', deleteWalletKeyboard(wallets));
-  }
-
   @On('callback_query')
-  async onDeleteWallet(@Ctx() ctx: Context, @CtxDataQuery() { data }: CallbackQuery.DataQuery, @CtxUser() user: User) {
+  async onDeleteWallet(
+    @Ctx() ctx: Context,
+    @CtxDataQuery() { data }: CallbackQuery.DataQuery,
+    @CtxUser() user: User,
+    @Next() next: () => Promise<void>,
+  ) {
+    if (!isAddress(data)) return next();
     await this.walletRepository.deleteByAddress(data, user.id);
     await ctx.scene.reenter();
   }

@@ -15,7 +15,9 @@ export function walletSettingsKeyboard(): Markup.Markup<InlineKeyboardMarkup> {
 
 export function setMainWalletKeyboard(wallets: Wallet[]): Markup.Markup<InlineKeyboardMarkup> {
   return Markup.inlineKeyboard([
-    ...wallets.map(({ address, isMain, name }) => [Markup.button.callback(!isMain ? name : `🔥 ${name}`, address)]),
+    ...wallets.map(({ address, isMain, name = 'Unknown' }) => [
+      Markup.button.callback(!isMain ? name : `🔥 ${name}`, address),
+    ]),
     [...backKeyboard().reply_markup.inline_keyboard.flat(), ...closeKeyboard().reply_markup.inline_keyboard.flat()],
   ]);
 }
@@ -30,7 +32,7 @@ export function setupWalletKeyboard(): Markup.Markup<InlineKeyboardMarkup> {
 
 export function deleteWalletKeyboard(wallets: Wallet[]): Markup.Markup<InlineKeyboardMarkup> {
   return Markup.inlineKeyboard([
-    ...wallets.map(({ address, name }) => [Markup.button.callback(name, address)]),
+    ...wallets.map(({ address, name = 'Unknown' }) => [Markup.button.callback(name, address)]),
     [...backKeyboard().reply_markup.inline_keyboard.flat(), ...closeKeyboard().reply_markup.inline_keyboard.flat()],
   ]);
 }

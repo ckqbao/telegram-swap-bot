@@ -1,6 +1,6 @@
 import { Inject, UseFilters } from '@nestjs/common';
 import { User } from '@telegraf/types';
-import { Action, Ctx, Message as Msg, Next, On, Wizard, WizardStep } from 'nestjs-telegraf';
+import { Action, Ctx, Message as Msg, Next, On, SceneEnter, Wizard, WizardStep } from 'nestjs-telegraf';
 import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { isAddress, isHex } from 'viem';
@@ -18,7 +18,6 @@ import { BaseScene } from '../base.scene';
 import { CtxDataQuery } from '@/telegram/decorator/context-data-query.decorator';
 
 enum SetupWalletSteps {
-  ENTER,
   NAME_WALLET,
   ENTER_PRIVATE_KEY,
 }
@@ -29,7 +28,7 @@ export class SetupWalletScene extends BaseScene {
   @Inject()
   private readonly walletRepository: WalletRepository;
 
-  @WizardStep(SetupWalletSteps.ENTER)
+  @SceneEnter()
   async onSceneEnter(@Ctx() ctx: Context) {
     await replyWithInlineKeyboardMenu(ctx, '⚙️ Setup Wallet', setupWalletKeyboard());
     return;
@@ -137,7 +136,7 @@ export class SetupWalletScene extends BaseScene {
       await ctx.deleteMessage(msg.message_id);
       return;
     }
-    console.log(ctx.session.dataQueryRepliedMessage?.parentMsgId, ctx.session.inlineKeyboardMenuMsgId);
+
     if (ctx.session.dataQueryRepliedMessage?.parentMsgId !== ctx.session.inlineKeyboardMenuMsgId) return next();
 
     const { name } = ctx.scene.state as { name: string };
@@ -157,7 +156,6 @@ export class SetupWalletScene extends BaseScene {
     await this.walletRepository.getOrCreateWallet({ address, name, privateKey: msg.text, userId: user.id });
     await ctx.deleteMessages([msg.reply_to_message.message_id, msg.message_id]);
     await ctx.reply('Wallet imported successfully.', closeKeyboard());
-    await ctx.scene.reenter();
     return;
   }
 
