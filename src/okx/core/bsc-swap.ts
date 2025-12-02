@@ -58,12 +58,16 @@ export class BscSwapExecutor implements SwapExecutor {
         // const baseFee = feeData.maxFeePerGas || BigInt(0);
         // const priorityFee = feeData.maxPriorityFeePerGas || BigInt(3000000000); // 3 gwei minimum
 
+        // Fixed gas price at 0.15 Gwei
+        const fixedGasPrice = BigInt(150000000); // 0.15 Gwei in wei (0.15 * 10^9)
+
         const transaction = {
           data: tx.data,
           to: tx.to,
           value: tx.value || '0',
           nonce: nonce + retryCount, // Increment nonce for each retry
           gasLimit: (BigInt(tx.gas || 0) * gasMultiplier) / BigInt(100),
+          gasPrice: fixedGasPrice,
           // maxFeePerGas: (baseFee * gasMultiplier) / BigInt(100),
           // maxPriorityFeePerGas: (priorityFee * gasMultiplier) / BigInt(100),
         };
@@ -74,6 +78,7 @@ export class BscSwapExecutor implements SwapExecutor {
             value: transaction.value,
             nonce: transaction.nonce,
             gasLimit: transaction.gasLimit.toString(),
+            gasPrice: transaction.gasPrice.toString(),
             // maxFeePerGas: transaction.maxFeePerGas.toString(),
             // maxPriorityFeePerGas: transaction.maxPriorityFeePerGas.toString(),
           })}`,
