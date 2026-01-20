@@ -6,10 +6,27 @@ import {
   OKXConfig,
   SwapParams,
   SwapResult,
+  SwapResponseData,
 } from '@okx-dex/okx-dex-sdk';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
 import { BscSwapExecutor } from './bsc-swap';
 import { EVMApproveExecutor } from './evm-approve';
+
+interface V6SwapParams {
+  chainIndex: string;
+  fromTokenAddress: string;
+  toTokenAddress: string;
+  amount: string;
+  slippagePercent: string;
+  userWalletAddress: string;
+  swapReceiverAddress?: string;
+  feePercent?: string;
+  fromTokenReferrerWalletAddress?: string;
+  toTokenReferrerWalletAddress?: string;
+  priceImpactProtectionPercent?: string;
+  autoSlippage?: string;
+  maxAutoSlippagePercent?: string;
+}
 
 export class OkxDex extends DexAPI {
   private readonly _defaultNetworkConfigs: NetworkConfigs = {
@@ -249,6 +266,66 @@ export class OkxDex extends DexAPI {
       ...this._defaultNetworkConfigs,
       ...(_config.networks || {}),
     };
+  }
+
+  /**
+   * Override getSwapData to use V6 API endpoint
+   * V5 API is deprecated as of September 2025
+   */
+  override async getSwapData(params: SwapParams): Promise<SwapResponseData> {
+    // Validate required parameters
+    if (!params.userWalletAddress) {
+      throw new Error('userWalletAddress is required');
+    }
+
+    // Validate slippage parameters
+    if (!params.slippage && !params.autoSlippage) {
+      throw new Error('Either slippage or autoSlippage must be provided');
+    }
+
+    if (params.slippage) {
+      const slippageValue = parseFloat(params.slippage);
+      if (isNaN(slippageValue) || slippageValue < 0 || slippageValue > 1) {
+        throw new Error('Slippage must be between 0 and 1');
+      }
+    }
+
+    // Convert V5 params to V6 format
+    const v6Params: V6SwapParams = {
+      chainIndex: params.chainId, // chainId -> chainIndex
+      fromTokenAddress: params.fromTokenAddress,
+      toTokenAddress: params.toTokenAddress,
+      amount: params.amount,
+      // slippage (0-1) -> slippagePercent (0-100)
+      slippagePercent: params.slippage ? String(parseFloat(params.slippage) * 100) : '1',
+      userWalletAddress: params.userWalletAddress,
+      feePercent: params.feePercent,
+      fromTokenReferrerWalletAddress: params.fromTokenReferrerWalletAddress,
+    };
+
+    // Handle autoSlippage
+    if (params.autoSlippage) {
+      v6Params.autoSlippage = 'true';
+      if (params.maxAutoSlippage) {
+        // maxAutoSlippage (0-1) -> maxAutoSlippagePercent (0-100)
+        v6Params.maxAutoSlippagePercent = String(parseFloat(params.maxAutoSlippage) * 100);
+      }
+    }
+
+    // Validate maxAutoSlippagePercent when autoSlippage is enabled
+    if (params.autoSlippage && !v6Params.maxAutoSlippagePercent) {
+      throw new Error('maxAutoSlippagePercent must be provided when autoSlippage is enabled');
+    }
+
+    // Convert to API params format (filter undefined values)
+    const apiParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(v6Params)) {
+      if (value !== undefined) {
+        apiParams[key] = String(value);
+      }
+    }
+
+    return this.httpClient.request('GET', '/api/v6/dex/aggregator/swap', apiParams);
   }
 
   override async executeSwap(params: SwapParams): Promise<SwapResult> {
