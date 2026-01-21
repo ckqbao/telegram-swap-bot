@@ -7,6 +7,8 @@ import {
   SwapParams,
   SwapResult,
   SwapResponseData,
+  ChainData,
+  APIResponse,
 } from '@okx-dex/okx-dex-sdk';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
 import { BscSwapExecutor } from './bsc-swap';
@@ -380,6 +382,16 @@ export class OkxDex extends DexAPI {
       // Otherwise, rethrow the error
       throw error;
     }
+  }
+
+  /**
+   * Override getChainData to use V6 API endpoint
+   * V5 API is deprecated as of September 2025
+   */
+  override async getChainData(chainId: string): Promise<APIResponse<ChainData>> {
+    return this.httpClient.request('GET', '/api/v6/dex/aggregator/supported/chain', {
+      chainIndex: chainId,
+    });
   }
 
   private _getNetworkConfig(chainId: string): ChainConfig {
