@@ -13,7 +13,7 @@ export const tokenInfoSchema = z.object({
   address: z.string(),
   decimals: z.number(),
   logoURI: z.string().optional(),
-  rating: z.number(),
+  rating: z.number().optional(),
   eip2612: z.boolean().nullish(),
   isFoT: z.boolean().nullish(),
   tags: z.array(tagSchema),
