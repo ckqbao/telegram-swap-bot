@@ -45,7 +45,7 @@ export class OkxSwapService implements Swap {
       amount,
       slippage: `${slippage / 100}`,
       userWalletAddress: evmWallet.address,
-      feePercent: '0.01',
+      feePercent: '0.05',
       fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
     });
 
