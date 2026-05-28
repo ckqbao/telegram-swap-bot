@@ -24,6 +24,11 @@ export function tokenInfoKeyboard({
     ...chunk(buyButtons, 3),
     [Markup.button.callback(tokenButtons.approveToken.label, tokenButtons.approveToken.callback)],
     [
+      Markup.button.callback(tokenButtons.sellQuarter.label, tokenButtons.sellQuarter.callback),
+      Markup.button.callback(tokenButtons.sellOneFifth.label, tokenButtons.sellOneFifth.callback),
+      Markup.button.callback(tokenButtons.sellOneThird.label, tokenButtons.sellOneThird.callback),
+    ],
+    [
       Markup.button.callback(tokenButtons.sellHalf.label, tokenButtons.sellHalf.callback),
       Markup.button.callback(tokenButtons.sellFull.label, tokenButtons.sellFull.callback),
       Markup.button.callback(tokenButtons.sellCustom.label, tokenButtons.sellCustom.callback),

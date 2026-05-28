@@ -23,6 +23,18 @@ export const tokenButtons = {
     label: 'Slippage',
     callback: 'set-slippage',
   },
+  sellQuarter: {
+    label: 'Sell 20%',
+    callback: 'sell-20',
+  },
+  sellOneFifth: {
+    label: 'Sell 25%',
+    callback: 'sell-25',
+  },
+  sellOneThird: {
+    label: 'Sell 33,33%',
+    callback: 'sell-33.33',
+  },
   sellHalf: {
     label: 'Sell 50%',
     callback: 'sell-50',
