@@ -51,6 +51,9 @@ export class ProcessCallbackQueryUseCase {
       case tokenButtons.refresh.callback:
         await this.tokenService.refreshTokenInfo(message.chat.id, message.message_id, user);
         return;
+      case tokenButtons.sellQuarter.callback:
+      case tokenButtons.sellOneFifth.callback:
+      case tokenButtons.sellOneThird.callback:
       case tokenButtons.sellHalf.callback:
       case tokenButtons.sellFull.callback: {
         const percent = Number(data.split('-')[1]);
