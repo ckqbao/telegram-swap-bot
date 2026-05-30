@@ -32,8 +32,8 @@ export const tokenButtons = {
     callback: 'sell-25',
   },
   sellOneThird: {
-    label: 'Sell 33,33%',
-    callback: 'sell-33.33',
+    label: 'Sell 33%',
+    callback: 'sell-33',
   },
   sellHalf: {
     label: 'Sell 50%',
