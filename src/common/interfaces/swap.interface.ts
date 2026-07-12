@@ -1,4 +1,5 @@
 import { Hex } from 'viem';
+import { ChainKey } from '@/common/constants';
 
 export type SwapStatus = 'approving' | 'already-approved' | 'approved' | 'swapping';
 
@@ -11,6 +12,7 @@ export type ApprovalStrategy =
 
 export type SwapConfig = {
   privateKey: string;
+  chain: ChainKey;
   fromTokenAddress: Hex;
   fromTokenDecimals: number;
   toTokenAddress: Hex;

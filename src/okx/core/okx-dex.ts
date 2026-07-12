@@ -130,6 +130,15 @@ export class OkxDex extends DexAPI {
       confirmationTimeout: 60000,
       maxRetries: 3,
     },
+    '4663': {
+      // Robinhood Chain (Arbitrum Orbit L2)
+      id: '4663',
+      explorer: 'https://robinhoodchain.blockscout.com/tx',
+      defaultSlippage: '0.005',
+      maxSlippage: '1',
+      confirmationTimeout: 60000,
+      maxRetries: 3,
+    },
     '100': {
       // Gnosis
       id: '100',

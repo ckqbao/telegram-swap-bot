@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '@telegraf/types';
 import { Message } from 'telegraf/typings/core/types/typegram';
+import { DEFAULT_CHAIN_KEY } from '@/common/constants';
 import { isInputAmount } from '@/common/utils/number';
 import { MsgLogRepository, PreferenceRepository } from '@/database/repository';
 import { Context } from '../interfaces/context.interface';
@@ -83,7 +84,7 @@ export class ProcessReplyMessageUseCase {
     const percent = Number(msg.text);
     await Promise.all([
       ctx.deleteMessages([msg.message_id, dataQueryRepliedMessage.msgId]),
-      this.swapService.sellToken(msg.chat.id, msgLog.tokenAddress, percent, user.id),
+      this.swapService.sellToken(msg.chat.id, msgLog.tokenAddress, percent, user.id, msgLog.chain ?? DEFAULT_CHAIN_KEY),
     ]);
   }
 
@@ -101,7 +102,7 @@ export class ProcessReplyMessageUseCase {
     }
     await Promise.all([
       ctx.deleteMessages([msg.message_id, dataQueryRepliedMessage.msgId]),
-      this.swapService.buyToken(msg.chat.id, msgLog.tokenAddress, amount, user.id),
+      this.swapService.buyToken(msg.chat.id, msgLog.tokenAddress, amount, user.id, msgLog.chain ?? DEFAULT_CHAIN_KEY),
     ]);
   }
 }

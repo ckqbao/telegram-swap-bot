@@ -17,6 +17,7 @@ import { User } from '@telegraf/types';
 import { commonButtons } from '@/telegram/buttons/common.buttons';
 import { isAddress } from 'viem';
 import { setBuyAmountsCaption } from '@/telegram/captions/token.caption';
+import { resolveChainKey } from '@/common/utils';
 import { CtxDataQuery } from '@/telegram/decorator/context-data-query.decorator';
 import { BaseScene } from '../base.scene';
 
@@ -93,7 +94,8 @@ export class TokenSettingsScene extends BaseScene {
           return;
         }
         await ctx.deleteMessages([msg.message_id, msg.reply_to_message.message_id]);
-        await this.preferenceRepository.setBuyAmounts(user.id, amounts);
+        const preference = await this.preferenceRepository.getByUserId(user.id);
+        await this.preferenceRepository.setBuyAmounts(user.id, resolveChainKey(preference), amounts);
         await ctx.reply('✅ Successfully Set Buy Amounts', { reply_markup: closeKeyboard().reply_markup });
         return;
       }

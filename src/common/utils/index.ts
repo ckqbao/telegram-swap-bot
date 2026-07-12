@@ -1,4 +1,5 @@
 export * from './links';
+export * from './preference';
 export * from './price';
 
 export const copytoclipboard = (text: string) => {

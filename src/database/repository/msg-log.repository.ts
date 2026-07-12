@@ -4,6 +4,7 @@ import { MsgLog } from '../schema/msg-log.schema';
 import { FilterQuery, Model } from 'mongoose';
 import { CreateMsgLogDto } from '../dto/msg-log.dto';
 import { isAddress } from 'viem';
+import { DEFAULT_CHAIN_KEY } from '@/common/constants';
 
 @Injectable()
 export class MsgLogRepository {
@@ -19,9 +20,9 @@ export class MsgLogRepository {
     return this.msgLogModel.findOne(filter);
   }
 
-  async getTokenAddress(chatId: number, msgId: number, username: string = '') {
+  async getTokenTrade(chatId: number, msgId: number, username: string = '') {
     const msgLog = await this.msgLogModel.findOne({ chatId, msgId, username });
     if (!msgLog || !isAddress(msgLog.tokenAddress)) throw new Error('Token address not found');
-    return msgLog.tokenAddress;
+    return { tokenAddress: msgLog.tokenAddress, chain: msgLog.chain ?? DEFAULT_CHAIN_KEY };
   }
 }

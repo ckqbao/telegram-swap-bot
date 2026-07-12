@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import z from 'zod';
 import { env } from '@/env/env';
-import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchSpotPriceService {
@@ -9,8 +8,8 @@ export class OneInchSpotPriceService {
 
   constructor() {}
 
-  async getTokenPrice(tokenAddress: string) {
-    const url = `${this.baseUrl}/${MAIN_CHAIN_ID}/${tokenAddress}?currency=USD`;
+  async getTokenPrice(tokenAddress: string, chainId: number) {
+    const url = `${this.baseUrl}/${chainId}/${tokenAddress}?currency=USD`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {

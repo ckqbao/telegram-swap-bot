@@ -4,7 +4,7 @@ import { Telegraf } from 'telegraf';
 import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
 import { formatUnits, Hex } from 'viem';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
-import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
+import { ChainKey, DEFAULT_CHAIN_KEY, getChain } from '@/common/constants';
 import { MsgLogRepository, PreferenceRepository, WalletRepository } from '@/database/repository';
 import { Context } from './interfaces/context.interface';
 import { OneInchTokenService } from '@/1inch/1inch-token.service';
@@ -32,15 +32,17 @@ export class SwapService {
     });
     if (!msgLog) return;
     const { tokenAddress } = msgLog;
+    const chain = msgLog.chain ?? DEFAULT_CHAIN_KEY;
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
-    const tokenInfo = await this.oneInchTokenService.getTokenInfo(tokenAddress);
+    const tokenInfo = await this.oneInchTokenService.getTokenInfo(tokenAddress, getChain(chain).viemChain.id);
     const amount = formatUnits(BigInt(1), tokenInfo.decimals);
     const messages: Message.TextMessage[] = [];
     try {
       await this.swapProviderService.performSwap(
         {
           privateKey,
+          chain,
           fromTokenAddress: tokenAddress,
           fromTokenDecimals: tokenInfo.decimals,
           toTokenAddress: this.swapProviderService.nativeTokenAddress,
@@ -67,7 +69,8 @@ export class SwapService {
     }
   }
 
-  async buyToken(chatId: number, tokenAddress: Hex, amount: string, userId: number) {
+  async buyToken(chatId: number, tokenAddress: Hex, amount: string, userId: number, chain: ChainKey) {
+    const { nativeSymbol, nativeDecimals } = getChain(chain);
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
     const messages: Message.TextMessage[] = [];
@@ -76,8 +79,9 @@ export class SwapService {
       await this.swapProviderService.performSwap(
         {
           privateKey,
+          chain,
           fromTokenAddress: this.swapProviderService.nativeTokenAddress,
-          fromTokenDecimals: NATIVE_TOKEN_DECIMALS,
+          fromTokenDecimals: nativeDecimals,
           toTokenAddress: tokenAddress,
           amountToSwap: amount,
           slippage: preference.slippage,
@@ -92,7 +96,7 @@ export class SwapService {
         },
       );
       await this.cleanMessages(chatId, messages);
-      const successCaption = swapSuccessCaption(amount, NATIVE_TOKEN, 'buy', Date.now() - swapStartedAt);
+      const successCaption = swapSuccessCaption(amount, nativeSymbol, 'buy', Date.now() - swapStartedAt);
       await this.bot.telegram.sendMessage(chatId, successCaption, {
         parse_mode: 'HTML',
         reply_markup: closeKeyboard().reply_markup,
@@ -100,7 +104,7 @@ export class SwapService {
     } catch (error) {
       await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to buy token', error);
-      const failedCaption = swapFailureCaption(amount, NATIVE_TOKEN, 'buy');
+      const failedCaption = swapFailureCaption(amount, nativeSymbol, 'buy');
       await this.bot.telegram.sendMessage(chatId, failedCaption, {
         parse_mode: 'HTML',
         reply_markup: closeKeyboard().reply_markup,
@@ -108,12 +112,13 @@ export class SwapService {
     }
   }
 
-  async sellToken(chatId: number, tokenAddress: Hex, percent: number, userId: number) {
+  async sellToken(chatId: number, tokenAddress: Hex, percent: number, userId: number, chain: ChainKey) {
+    const chainId = getChain(chain).viemChain.id;
     const preference = await this.preferenceRepository.getByUserId(userId);
     const privateKey = await this.walletRepository.getMainWalletPrivateKeyForUser(userId);
     const [tokenInfo, tokenBalances] = await Promise.all([
-      this.oneInchTokenService.getTokenInfo(tokenAddress),
-      this.oneInchBalanceService.getTokenBalances([tokenAddress], privateKey),
+      this.oneInchTokenService.getTokenInfo(tokenAddress, chainId),
+      this.oneInchBalanceService.getTokenBalances([tokenAddress], privateKey, chainId),
     ]);
     const balance = Object.values(tokenBalances)[0];
     if (!balance) {
@@ -131,6 +136,7 @@ export class SwapService {
       await this.swapProviderService.performSwap(
         {
           privateKey,
+          chain,
           fromTokenAddress: tokenAddress,
           fromTokenDecimals: tokenInfo.decimals,
           toTokenAddress: this.swapProviderService.nativeTokenAddress,

@@ -4,7 +4,6 @@ import { nonceManager, privateKeyToAccount } from 'viem/accounts';
 import z from 'zod';
 import { env } from '@/env/env';
 import { hexSchema } from '@/common/utils/zod-schema';
-import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchBalanceService {
@@ -13,10 +12,10 @@ export class OneInchBalanceService {
 
   constructor() {}
 
-  async getTokenBalances(tokens: Hex[], privateKey: Hex) {
+  async getTokenBalances(tokens: Hex[], privateKey: Hex, chainId: number) {
     const account = privateKeyToAccount(privateKey, { nonceManager });
     const walletAddress = account.address;
-    const url = `${this.baseUrl}/${MAIN_CHAIN_ID}/balances/${walletAddress}`;
+    const url = `${this.baseUrl}/${chainId}/balances/${walletAddress}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -27,7 +26,7 @@ export class OneInchBalanceService {
     });
 
     if (!response.ok) {
-      this.logger.error(`Failed to fetch token balances: ${JSON.stringify(response)}`);
+      this.logger.error(`Failed to fetch token balances: ${response.status} ${await response.text()}`);
       throw new InternalServerErrorException('Failed to fetch token balances');
     }
 

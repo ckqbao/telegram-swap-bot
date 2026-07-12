@@ -3,7 +3,6 @@ import { Hex } from 'viem';
 import z from 'zod';
 import { env } from '@/env/env';
 import { tokenDetailsSchema } from './types/token-details';
-import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchTokenDetailsService {
@@ -12,8 +11,8 @@ export class OneInchTokenDetailsService {
 
   constructor() {}
 
-  async getTokenDetails(tokenAddress: Hex) {
-    const url = `${this.baseUrl}/${MAIN_CHAIN_ID}/${tokenAddress}?provider=coinmarketcap`;
+  async getTokenDetails(tokenAddress: Hex, chainId: number) {
+    const url = `${this.baseUrl}/${chainId}/${tokenAddress}?provider=coinmarketcap`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -22,7 +21,7 @@ export class OneInchTokenDetailsService {
     });
 
     if (!response.ok) {
-      this.logger.error(`Failed to fetch token details: ${JSON.stringify(response)}`);
+      this.logger.error(`Failed to fetch token details: ${response.status} ${await response.text()}`);
       throw new InternalServerErrorException('Failed to fetch token details');
     }
 
@@ -31,9 +30,9 @@ export class OneInchTokenDetailsService {
     return details;
   }
 
-  async getTokenMarketCap(tokenAddress: Hex) {
+  async getTokenMarketCap(tokenAddress: Hex, chainId: number) {
     try {
-      const details = await this.getTokenDetails(tokenAddress);
+      const details = await this.getTokenDetails(tokenAddress, chainId);
       return details.marketCap;
     } catch (error) {
       this.logger.error(`Failed to fetch token market cap: ${error}`);

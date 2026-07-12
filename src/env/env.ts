@@ -25,6 +25,9 @@ export const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string(),
   REDIS_URL: z.string().optional(),
   EVM_RPC_URL: z.string().default('https://bsc-dataseed1.bnbchain.org'),
+  ETH_RPC_URL: z.string().optional(),
+  ARB_RPC_URL: z.string().optional(),
+  RH_RPC_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

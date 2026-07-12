@@ -1,10 +1,9 @@
 import { env } from '@/env/env';
-import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Hex } from 'viem';
 import { tokenInfoSchema, tokensInfoSchema, TokenInfo, TokensInfo } from './types/token';
-import { MAIN_CHAIN_ID } from '@/common/constants';
 
 @Injectable()
 export class OneInchTokenService {
@@ -14,8 +13,7 @@ export class OneInchTokenService {
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
-  async getTokenInfo(address: Hex): Promise<TokenInfo> {
-    const chainId = MAIN_CHAIN_ID;
+  async getTokenInfo(address: Hex, chainId: number): Promise<TokenInfo> {
     const cacheKey = `token:${chainId}:${address.toLowerCase()}`;
 
     // Try to get from cache
@@ -35,8 +33,14 @@ export class OneInchTokenService {
       },
     });
 
+    if (response.status === 404) {
+      throw new NotFoundException(
+        'Token not found on the selected chain — double-check which chain this token lives on',
+      );
+    }
+
     if (!response.ok) {
-      this.logger.error(`Failed to fetch token info: ${JSON.stringify(response)}`);
+      this.logger.error(`Failed to fetch token info: ${response.status} ${await response.text()}`);
       throw new InternalServerErrorException('Failed to fetch token info');
     }
 
@@ -49,8 +53,7 @@ export class OneInchTokenService {
     return tokenInfo;
   }
 
-  async getTokensInfo(tokenAddresses: Hex[]): Promise<TokensInfo> {
-    const chainId = MAIN_CHAIN_ID;
+  async getTokensInfo(tokenAddresses: Hex[], chainId: number): Promise<TokensInfo> {
     const normalizedAddresses = tokenAddresses.map((addr) => addr.toLowerCase() as Hex);
     const cacheKey = `tokens:${chainId}:${normalizedAddresses.sort().join(',')}`;
 
@@ -72,7 +75,7 @@ export class OneInchTokenService {
     });
 
     if (!response.ok) {
-      this.logger.error(`Failed to fetch tokens info: ${JSON.stringify(response)}`);
+      this.logger.error(`Failed to fetch tokens info: ${response.status} ${await response.text()}`);
       throw new InternalServerErrorException('Failed to fetch tokens info');
     }
 

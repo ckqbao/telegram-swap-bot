@@ -1,11 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createEVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { parseUnits } from 'ethers';
-import { MAIN_CHAIN_ID } from '@/common/constants';
+import { getChain } from '@/common/constants';
 import { OnStatusUpdate, Swap, SwapConfig } from '@/common/interfaces/swap.interface';
 import { ViemPublicClient } from '@/common/providers';
+import { ChainClientService } from '@/common/services/chain-client.service';
 import { getEthersProvider } from '@/common/utils/ethers-adapter';
-import { VIEM_PUBLIC_CLIENT } from '@/common/constants/provider.constant';
 import { OKXClient } from './core/okx-client';
 import { toBaseUnits } from './utils/units';
 import { OKX_NATIVE_TOKEN_ADDRESS } from './okx.constant';
@@ -16,19 +16,20 @@ export class OkxSwapService implements Swap {
   private readonly logger = new Logger(OkxSwapService.name);
   readonly nativeTokenAddress = OKX_NATIVE_TOKEN_ADDRESS;
 
-  constructor(@Inject(VIEM_PUBLIC_CLIENT) private readonly viemPublicClient: ViemPublicClient) {}
+  constructor(private readonly chainClientService: ChainClientService) {}
 
   async buyToken() {}
 
   async performSwap(config: SwapConfig, onStatusUpdate?: OnStatusUpdate) {
-    const { amountToSwap, privateKey, fromTokenAddress, fromTokenDecimals, toTokenAddress, slippage } = config;
+    const { amountToSwap, chain, privateKey, fromTokenAddress, fromTokenDecimals, toTokenAddress, slippage } = config;
 
-    const { evmWallet, okxClient } = this.initializeOkxClient(privateKey);
-    const chainId = `${this.viemPublicClient.chain.id}`;
+    const client = this.chainClientService.getClient(chain);
+    const { evmWallet, okxClient } = this.initializeOkxClient(privateKey, client);
+    const chainId = `${getChain(chain).viemChain.id}`;
     const isNativeSwap = fromTokenAddress === this.nativeTokenAddress;
 
     if (!isNativeSwap) {
-      await this.approveIfNeeded(okxClient, fromTokenAddress, fromTokenDecimals, amountToSwap, onStatusUpdate);
+      await this.approveIfNeeded(okxClient, chainId, fromTokenAddress, fromTokenDecimals, amountToSwap, onStatusUpdate);
     }
 
     if (config.approveOnly) return;
@@ -56,6 +57,7 @@ export class OkxSwapService implements Swap {
 
   private async approveIfNeeded(
     okxClient: OKXClient,
+    chainId: string,
     tokenAddress: string,
     tokenDecimals: number,
     amount: string,
@@ -64,7 +66,6 @@ export class OkxSwapService implements Swap {
     await onStatusUpdate?.('approving');
     this.logger.log('Approving token...');
 
-    const chainId = `${MAIN_CHAIN_ID}`;
     const rawAmount = toBaseUnits(amount, tokenDecimals);
 
     const result = await okxClient.dex.executeApproval({
@@ -83,8 +84,8 @@ export class OkxSwapService implements Swap {
     await onStatusUpdate?.('approved');
   }
 
-  private initializeOkxClient(privateKey: string) {
-    const evmWallet = createEVMWallet(privateKey, getEthersProvider(this.viemPublicClient));
+  private initializeOkxClient(privateKey: string, client: ViemPublicClient) {
+    const evmWallet = createEVMWallet(privateKey, getEthersProvider(client));
     const okxClient = new OKXClient(evmWallet);
     return { evmWallet, okxClient };
   }

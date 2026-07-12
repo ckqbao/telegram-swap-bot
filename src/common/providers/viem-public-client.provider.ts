@@ -4,7 +4,7 @@ import { bsc } from 'viem/chains';
 import { env } from '@/env/env';
 import { VIEM_PUBLIC_CLIENT } from '../constants/provider.constant';
 
-function extendClient(client: PublicClient<Transport, Chain>) {
+export function extendClient(client: PublicClient<Transport, Chain>) {
   return client.extend(walletActions);
 }
 

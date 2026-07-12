@@ -8,13 +8,15 @@ import { chunk } from 'lodash';
 export function tokenInfoKeyboard({
   buyAmounts = DEFAULT_BUY_AMOUNTS,
   slippage,
+  nativeSymbol,
 }: {
   buyAmounts?: number[];
   slippage: number;
+  nativeSymbol: string;
 }): Markup.Markup<InlineKeyboardMarkup> {
   const buyButtons = [
     ...buyAmounts.map((amount) => Markup.button.callback(`${amount}`, `buy-${amount}`)),
-    Markup.button.callback(tokenButtons.buyCustom.label, tokenButtons.buyCustom.callback),
+    Markup.button.callback(`X ${nativeSymbol}`, tokenButtons.buyCustom.callback),
   ];
   return Markup.inlineKeyboard([
     [

@@ -3,8 +3,8 @@ import { User } from '@telegraf/types';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { CallbackQuery } from 'telegraf/typings/core/types/typegram';
-import { DEFAULT_BUY_AMOUNTS } from '@/common/constants';
-import { MsgLogRepository, PreferenceRepository } from '@/database/repository';
+import { getChain } from '@/common/constants';
+import { MsgLogRepository } from '@/database/repository';
 import { Context } from '../interfaces/context.interface';
 import { SwapService } from '../swap.service';
 import { TokenService } from '../token.service';
@@ -17,7 +17,6 @@ export class ProcessCallbackQueryUseCase {
   constructor(
     @InjectBot() private readonly bot: Telegraf<Context>,
     private readonly msgLogRepository: MsgLogRepository,
-    private readonly preferenceRepository: PreferenceRepository,
     private readonly swapService: SwapService,
     private readonly tokenService: TokenService,
   ) {}
@@ -25,24 +24,18 @@ export class ProcessCallbackQueryUseCase {
   async execute(ctx: Context, { data, message }: CallbackQuery.DataQuery, user: User) {
     if (!data || !message) return;
 
-    const preferences = await this.preferenceRepository.getByUserId(user.id);
-    const buyAmounts = (preferences.buyAmounts ?? DEFAULT_BUY_AMOUNTS).map(String);
-
-    if (data.startsWith('buy-') && buyAmounts.includes(data.split('-')[1])) {
-      const tokenAddress = await this.msgLogRepository.getTokenAddress(
-        message.chat.id,
-        message.message_id,
-        user.username,
-      );
-      await this.swapService.buyToken(message.chat.id, tokenAddress, data.split('-')[1], user.id);
-      return;
+    if (data.startsWith('buy-') && data !== tokenButtons.buyCustom.callback) {
+      const amount = Number(data.slice('buy-'.length));
+      if (Number.isFinite(amount) && amount > 0) {
+        const { tokenAddress, chain } = await this.msgLogRepository.getTokenTrade(
+          message.chat.id,
+          message.message_id,
+          user.username,
+        );
+        await this.swapService.buyToken(message.chat.id, tokenAddress, `${amount}`, user.id, chain);
+        return;
+      }
     }
-
-    const captionByData = {
-      [tokenButtons.buyCustom.callback]: buyCustomCaption(),
-      [tokenButtons.sellCustom.callback]: sellCustomCaption(),
-      [tokenButtons.slippage.callback]: setSlippageCaption(),
-    };
 
     switch (data) {
       case tokenButtons.approveToken.callback:
@@ -57,18 +50,29 @@ export class ProcessCallbackQueryUseCase {
       case tokenButtons.sellHalf.callback:
       case tokenButtons.sellFull.callback: {
         const percent = Number(data.split('-')[1]);
-        const tokenAddress = await this.msgLogRepository.getTokenAddress(
+        const { tokenAddress, chain } = await this.msgLogRepository.getTokenTrade(
           message.chat.id,
           message.message_id,
           user.username,
         );
-        await this.swapService.sellToken(message.chat.id, tokenAddress, percent, user.id);
+        await this.swapService.sellToken(message.chat.id, tokenAddress, percent, user.id, chain);
         return;
       }
-      case tokenButtons.buyCustom.callback:
+      case tokenButtons.buyCustom.callback: {
+        const { chain } = await this.msgLogRepository.getTokenTrade(message.chat.id, message.message_id, user.username);
+        await replyWithDataQueryRepliedMessage(
+          ctx,
+          data,
+          buyCustomCaption(getChain(chain).nativeSymbol),
+          message.message_id,
+        );
+        return;
+      }
       case tokenButtons.sellCustom.callback:
+        await replyWithDataQueryRepliedMessage(ctx, data, sellCustomCaption(), message.message_id);
+        return;
       case tokenButtons.slippage.callback:
-        await replyWithDataQueryRepliedMessage(ctx, data, captionByData[data], message.message_id);
+        await replyWithDataQueryRepliedMessage(ctx, data, setSlippageCaption(), message.message_id);
         return;
     }
   }

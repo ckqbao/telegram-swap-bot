@@ -11,7 +11,8 @@ import { OneInchTokenService } from '@/1inch/1inch-token.service';
 import { tokenInfoKeyboard } from './keyboards/token.keyboards';
 import { tokenInfoCaption } from './captions/token.caption';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
-import { NATIVE_TOKEN, NATIVE_TOKEN_DECIMALS } from '@/common/constants';
+import { ChainKey, getChain } from '@/common/constants';
+import { resolveBuyAmounts, resolveChainKey } from '@/common/utils';
 import { ONE_INCH_NATIVE_TOKEN_ADDRESS } from '@/1inch/1inch.constant';
 
 @Injectable()
@@ -27,36 +28,50 @@ export class TokenService {
     private readonly oneInchTokenService: OneInchTokenService,
   ) {}
 
-  private async prepareTokenInfoContext(tokenAddress: Hex, user: User) {
+  private async prepareTokenInfoContext(
+    tokenAddress: Hex,
+    user: User,
+    chainKey: ChainKey,
+    preference: Awaited<ReturnType<PreferenceRepository['getByUserId']>>,
+  ) {
+    const chain = getChain(chainKey);
+    const chainId = chain.viemChain.id;
     const wallet = await this.walletRepository.getUserMainWallet(user.id);
     const [tokenBalances, tokenInfo, price, marketCap] = await Promise.all([
-      this.oneInchBalanceService.getTokenBalances([ONE_INCH_NATIVE_TOKEN_ADDRESS], wallet.privateKey),
-      this.oneInchTokenService.getTokenInfo(tokenAddress),
-      this.oneInchSpotPriceService.getTokenPrice(tokenAddress),
-      this.oneInchTokenDetailsService.getTokenMarketCap(tokenAddress),
+      this.oneInchBalanceService.getTokenBalances([ONE_INCH_NATIVE_TOKEN_ADDRESS], wallet.privateKey, chainId),
+      this.oneInchTokenService.getTokenInfo(tokenAddress, chainId),
+      this.oneInchSpotPriceService.getTokenPrice(tokenAddress, chainId),
+      this.oneInchTokenDetailsService.getTokenMarketCap(tokenAddress, chainId),
     ]);
-    const preference = await this.preferenceRepository.getByUserId(user.id);
-    const walletBalance = `${formatUnits(tokenBalances[ONE_INCH_NATIVE_TOKEN_ADDRESS], NATIVE_TOKEN_DECIMALS)} ${NATIVE_TOKEN}`;
+    const walletBalance = `${formatUnits(tokenBalances[ONE_INCH_NATIVE_TOKEN_ADDRESS], chain.nativeDecimals)} ${chain.nativeSymbol}`;
     const caption = tokenInfoCaption(
       { name: tokenInfo.name, symbol: tokenInfo.symbol, mint: tokenAddress, price, marketCap },
       wallet.name,
       walletBalance,
+      chainKey,
     );
-    return { caption, preference };
+    const replyMarkup = tokenInfoKeyboard({
+      buyAmounts: resolveBuyAmounts(preference, chainKey),
+      slippage: preference.slippage,
+      nativeSymbol: chain.nativeSymbol,
+    }).reply_markup;
+    return { caption, replyMarkup };
   }
 
   async getTokenInfo(chatId: number, tokenAddress: Hex, user: User) {
-    const { caption, preference } = await this.prepareTokenInfoContext(tokenAddress, user);
+    const preference = await this.preferenceRepository.getByUserId(user.id);
+    const chainKey = resolveChainKey(preference);
+    const { caption, replyMarkup } = await this.prepareTokenInfoContext(tokenAddress, user, chainKey, preference);
     const tokenInfoMessage = await this.bot.telegram.sendMessage(chatId, caption, {
       link_preview_options: {
         is_disabled: true,
       },
       parse_mode: 'HTML',
-      reply_markup: tokenInfoKeyboard({ buyAmounts: preference.buyAmounts, slippage: preference.slippage })
-        .reply_markup,
+      reply_markup: replyMarkup,
     });
 
     await this.msgLogRepository.createMsgLog({
+      chain: chainKey,
       chatId,
       tokenAddress,
       msgId: tokenInfoMessage.message_id,
@@ -65,15 +80,15 @@ export class TokenService {
   }
 
   async refreshTokenInfo(chatId: number, msgId: number, user: User) {
-    const tokenAddress = await this.msgLogRepository.getTokenAddress(chatId, msgId, user.username);
-    const { caption, preference } = await this.prepareTokenInfoContext(tokenAddress, user);
+    const { tokenAddress, chain } = await this.msgLogRepository.getTokenTrade(chatId, msgId, user.username);
+    const preference = await this.preferenceRepository.getByUserId(user.id);
+    const { caption, replyMarkup } = await this.prepareTokenInfoContext(tokenAddress, user, chain, preference);
     await this.bot.telegram.editMessageText(chatId, msgId, undefined, caption, {
       link_preview_options: {
         is_disabled: true,
       },
       parse_mode: 'HTML',
-      reply_markup: tokenInfoKeyboard({ buyAmounts: preference.buyAmounts, slippage: preference.slippage })
-        .reply_markup,
+      reply_markup: replyMarkup,
     });
   }
 }
