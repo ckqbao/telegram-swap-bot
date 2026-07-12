@@ -3,6 +3,12 @@ import { SwapParams, SwapResponseData, SwapResult, ChainConfig, OKXConfig } from
 import { SwapExecutor } from '../interfaces/swap-executor.interface';
 import { Logger } from '@nestjs/common';
 
+// Fixed gas price in wei per chain id; chains not listed use the default
+const DEFAULT_FIXED_GAS_PRICE = BigInt(150000000); // 0.15 Gwei
+const FIXED_GAS_PRICE_BY_CHAIN: Record<string, bigint> = {
+  '4663': BigInt(120000000), // Robinhood Chain: 0.12 Gwei
+};
+
 export class BscSwapExecutor implements SwapExecutor {
   private readonly logger = new Logger(BscSwapExecutor.name);
   private readonly provider: ethers.Provider;
@@ -58,8 +64,7 @@ export class BscSwapExecutor implements SwapExecutor {
         // const baseFee = feeData.maxFeePerGas || BigInt(0);
         // const priorityFee = feeData.maxPriorityFeePerGas || BigInt(3000000000); // 3 gwei minimum
 
-        // Fixed gas price at 0.12 Gwei
-        const fixedGasPrice = BigInt(120000000); // 0.12 Gwei in wei (0.12 * 10^9)
+        const fixedGasPrice = FIXED_GAS_PRICE_BY_CHAIN[this.networkConfig.id] ?? DEFAULT_FIXED_GAS_PRICE;
 
         const transaction = {
           data: tx.data,
