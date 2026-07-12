@@ -58,8 +58,8 @@ export class BscSwapExecutor implements SwapExecutor {
         // const baseFee = feeData.maxFeePerGas || BigInt(0);
         // const priorityFee = feeData.maxPriorityFeePerGas || BigInt(3000000000); // 3 gwei minimum
 
-        // Fixed gas price at 0.15 Gwei
-        const fixedGasPrice = BigInt(150000000); // 0.15 Gwei in wei (0.15 * 10^9)
+        // Fixed gas price at 0.12 Gwei
+        const fixedGasPrice = BigInt(120000000); // 0.12 Gwei in wei (0.12 * 10^9)
 
         const transaction = {
           data: tx.data,
