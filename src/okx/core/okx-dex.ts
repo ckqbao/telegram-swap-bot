@@ -11,7 +11,7 @@ import {
   APIResponse,
 } from '@okx-dex/okx-dex-sdk';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
-import { BscSwapExecutor } from './bsc-swap';
+import { EvmSwapExecutor } from './evm-swap';
 import { EVMApproveExecutor } from './evm-approve';
 
 interface V6SwapParams {
@@ -343,7 +343,7 @@ export class OkxDex extends DexAPI {
     const swapData = await this.getSwapData(params);
     const networkConfig = this._getNetworkConfig(params.chainId);
 
-    const executor = new BscSwapExecutor(this._config, networkConfig);
+    const executor = new EvmSwapExecutor(this._config, networkConfig);
 
     return executor.executeSwap(swapData, params);
   }

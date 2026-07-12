@@ -9,8 +9,8 @@ const FIXED_GAS_PRICE_BY_CHAIN: Record<string, bigint> = {
   '4663': BigInt(120000000), // Robinhood Chain: 0.12 Gwei
 };
 
-export class BscSwapExecutor implements SwapExecutor {
-  private readonly logger = new Logger(BscSwapExecutor.name);
+export class EvmSwapExecutor implements SwapExecutor {
+  private readonly logger = new Logger(EvmSwapExecutor.name);
   private readonly provider: ethers.Provider;
   private readonly DEFAULT_GAS_MULTIPLIER = BigInt(150); // 1.5x
 
