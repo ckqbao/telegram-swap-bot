@@ -51,13 +51,14 @@ export class EvmSwapExecutor implements SwapExecutor {
     }
 
     let retryCount = 0;
+    let sentHash: string | undefined;
     while (retryCount < (this.networkConfig.maxRetries || 3)) {
       try {
         this.logger.log('Preparing transaction...');
         const gasMultiplier = BigInt(500); // 5x standard multiplier
 
-        // Get current nonce
-        const nonce = await this.provider.getTransactionCount(this.config.evm.wallet.address);
+        // Get current nonce, including transactions still pending in the mempool
+        const nonce = await this.provider.getTransactionCount(this.config.evm.wallet.address, 'pending');
 
         // Get current gas prices
         // const feeData = await this.provider.getFeeData();
@@ -70,7 +71,7 @@ export class EvmSwapExecutor implements SwapExecutor {
           data: tx.data,
           to: tx.to,
           value: tx.value || '0',
-          nonce: nonce + retryCount, // Increment nonce for each retry
+          nonce,
           gasLimit: (BigInt(tx.gas || 0) * gasMultiplier) / BigInt(100),
           gasPrice: fixedGasPrice,
           // maxFeePerGas: (baseFee * gasMultiplier) / BigInt(100),
@@ -91,6 +92,7 @@ export class EvmSwapExecutor implements SwapExecutor {
 
         this.logger.log('Sending transaction...');
         const response = await this.config.evm.wallet.sendTransaction(transaction);
+        sentHash = response.hash;
         this.logger.log(`Transaction sent! Hash: ${response.hash}`);
 
         // Wait a bit before checking status to allow transaction to be mined
@@ -101,7 +103,9 @@ export class EvmSwapExecutor implements SwapExecutor {
           // Poll for transaction status
           let receipt: TransactionReceipt | null = null;
           let attempts = 0;
+          let notFoundStreak = 0;
           const maxAttempts = 30; // 30 attempts * 0.5 seconds = 15 seconds total
+          const maxNotFoundStreak = 6; // tolerate ~3 seconds of RPC indexing lag
 
           while (attempts < maxAttempts) {
             receipt = await this.provider.getTransactionReceipt(response.hash);
@@ -111,13 +115,20 @@ export class EvmSwapExecutor implements SwapExecutor {
               return receipt;
             }
 
-            // Check if transaction is still pending
+            // Check if transaction is still pending. A just-sent transaction may
+            // not be indexed by the RPC node yet, so only declare it dropped
+            // after several consecutive misses.
             const tx = await this.provider.getTransaction(response.hash);
             if (!tx) {
-              // Check if we're on a different network than expected
-              const network = await this.provider.getNetwork();
-              this.logger.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
-              throw new Error('Transaction dropped - check network and gas prices');
+              notFoundStreak++;
+              if (notFoundStreak >= maxNotFoundStreak) {
+                // Check if we're on a different network than expected
+                const network = await this.provider.getNetwork();
+                this.logger.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
+                throw new Error('Transaction dropped - check network and gas prices');
+              }
+            } else {
+              notFoundStreak = 0;
             }
 
             this.logger.log(`Transaction still pending... (attempt ${attempts + 1}/${maxAttempts})`);
@@ -149,6 +160,17 @@ export class EvmSwapExecutor implements SwapExecutor {
         const delay = 2000 * retryCount;
         this.logger.log(`Retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
+
+        // The transaction may have been mined despite the error (e.g. it was
+        // wrongly declared dropped due to RPC lag). Re-sending the swap in
+        // that case would execute it twice, so check before retrying.
+        if (sentHash) {
+          const minedReceipt = await this.provider.getTransactionReceipt(sentHash).catch(() => null);
+          if (minedReceipt) {
+            this.logger.log(`Transaction ${sentHash} was mined after all, skipping retry`);
+            return minedReceipt;
+          }
+        }
       }
     }
 
