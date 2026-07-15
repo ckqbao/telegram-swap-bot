@@ -10,6 +10,7 @@ import {
 } from '@okx-dex/okx-dex-sdk';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
 import { SwapExecutor } from '../interfaces/swap-executor.interface';
+import { walletNonceManager } from './nonce-manager';
 import { Logger } from '@nestjs/common';
 
 // ERC20 ABI for approval
@@ -122,18 +123,23 @@ export class EVMApproveExecutor implements SwapExecutor {
     const amount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff').toString();
     const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, this.config.evm.wallet);
 
+    const walletAddress = this.config.evm.wallet.address;
+
     let retryCount = 0;
     while (retryCount < (this.networkConfig.maxRetries || 3)) {
       try {
         this.logger.log('Sending approval transaction...');
+        const nonce = await walletNonceManager.reserve(this.provider, this.networkConfig.id, walletAddress);
         const tx = await tokenContract.approve(spenderAddress, amount, {
           gasLimit: BigInt(100000), // Safe default for approvals
+          nonce,
         });
 
         this.logger.log('Waiting for transaction confirmation...');
         return await tx.wait();
       } catch (error) {
         retryCount++;
+        walletNonceManager.markStale(this.networkConfig.id, walletAddress);
         console.warn(`Approval attempt ${retryCount} failed, retrying in ${2000 * retryCount}ms...`);
         if (retryCount === this.networkConfig.maxRetries) throw error;
         await new Promise((resolve) => setTimeout(resolve, 2000 * retryCount));

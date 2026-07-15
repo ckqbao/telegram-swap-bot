@@ -1,9 +1,18 @@
 import { Hex } from 'viem';
 import { ChainKey } from '@/common/constants';
 
-export type SwapStatus = 'approving' | 'already-approved' | 'approved' | 'swapping';
+export type SwapStatus = 'approving' | 'already-approved' | 'approved' | 'swapping' | 'submitted';
 
 export type OnStatusUpdate = (status: SwapStatus) => Promise<void>;
+
+export type SwapSettlement = {
+  success: boolean;
+  transactionId: string;
+  explorerUrl: string;
+  error?: string;
+};
+
+export type OnSwapSettled = (settlement: SwapSettlement) => Promise<void> | void;
 
 export type ApprovalStrategy =
   | 'unlimited' // Approve max uint256 (convenient but risky)
@@ -26,5 +35,10 @@ export type SwapConfig = {
 
 export interface Swap {
   readonly nativeTokenAddress: Hex;
-  performSwap(config: SwapConfig, onStatusUpdate?: OnStatusUpdate): Promise<void>;
+  /**
+   * Resolves once the swap transaction has been submitted to the network.
+   * Whether it actually succeeded is reported later through `onSettled`,
+   * so multiple swaps can be fired without waiting for confirmations.
+   */
+  performSwap(config: SwapConfig, onStatusUpdate?: OnStatusUpdate, onSettled?: OnSwapSettled): Promise<void>;
 }

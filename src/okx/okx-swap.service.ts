@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createEVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { parseUnits } from 'ethers';
 import { getChain } from '@/common/constants';
-import { OnStatusUpdate, Swap, SwapConfig } from '@/common/interfaces/swap.interface';
+import { OnStatusUpdate, OnSwapSettled, Swap, SwapConfig } from '@/common/interfaces/swap.interface';
 import { ViemPublicClient } from '@/common/providers';
 import { ChainClientService } from '@/common/services/chain-client.service';
 import { getEthersProvider } from '@/common/utils/ethers-adapter';
@@ -20,7 +20,7 @@ export class OkxSwapService implements Swap {
 
   async buyToken() {}
 
-  async performSwap(config: SwapConfig, onStatusUpdate?: OnStatusUpdate) {
+  async performSwap(config: SwapConfig, onStatusUpdate?: OnStatusUpdate, onSettled?: OnSwapSettled) {
     const { amountToSwap, chain, privateKey, fromTokenAddress, fromTokenDecimals, toTokenAddress, slippage } = config;
 
     const client = this.chainClientService.getClient(chain);
@@ -39,20 +39,26 @@ export class OkxSwapService implements Swap {
     await onStatusUpdate?.('swapping');
 
     this.logger.log(`Executing swap at: ${new Date().toISOString()}`);
-    const receipt = await okxClient.dex.executeSwap({
-      chainId,
-      fromTokenAddress,
-      toTokenAddress,
-      amount,
-      slippage: `${slippage / 100}`,
-      userWalletAddress: evmWallet.address,
-      feePercent: '0.05',
-      fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
-    });
+    const result = await okxClient.dex.executeSwap(
+      {
+        chainId,
+        fromTokenAddress,
+        toTokenAddress,
+        amount,
+        slippage: `${slippage / 100}`,
+        userWalletAddress: evmWallet.address,
+        feePercent: '0.05',
+        fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
+      },
+      onSettled,
+    );
 
-    if (!receipt.success) {
+    if (!result.success) {
       throw new Error('Swap failed');
     }
+
+    this.logger.log(`Swap submitted: ${result.transactionId}`);
+    await onStatusUpdate?.('submitted');
   }
 
   private async approveIfNeeded(

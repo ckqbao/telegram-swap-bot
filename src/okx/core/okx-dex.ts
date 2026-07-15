@@ -13,6 +13,7 @@ import {
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
 import { EvmSwapExecutor } from './evm-swap';
 import { EVMApproveExecutor } from './evm-approve';
+import { OnSwapSettled } from '../interfaces/swap-executor.interface';
 
 interface V6SwapParams {
   chainIndex: string;
@@ -339,13 +340,13 @@ export class OkxDex extends DexAPI {
     return this.httpClient.request('GET', '/api/v6/dex/aggregator/swap', apiParams);
   }
 
-  override async executeSwap(params: SwapParams): Promise<SwapResult> {
+  override async executeSwap(params: SwapParams, onSettled?: OnSwapSettled): Promise<SwapResult> {
     const swapData = await this.getSwapData(params);
     const networkConfig = this._getNetworkConfig(params.chainId);
 
     const executor = new EvmSwapExecutor(this._config, networkConfig);
 
-    return executor.executeSwap(swapData, params);
+    return executor.executeSwap(swapData, params, onSettled);
   }
 
   override async executeApproval(

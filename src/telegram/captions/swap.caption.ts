@@ -28,5 +28,7 @@ export function swapStatusCaption(status: SwapStatus) {
       return 'Token approved!';
     case 'swapping':
       return 'Executing swap transaction...';
+    case 'submitted':
+      return 'Order submitted! Waiting for confirmation...';
   }
 }

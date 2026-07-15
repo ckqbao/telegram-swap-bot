@@ -1,6 +1,7 @@
 import { ethers, TransactionReceipt } from 'ethers';
 import { SwapParams, SwapResponseData, SwapResult, ChainConfig, OKXConfig } from '@okx-dex/okx-dex-sdk';
-import { SwapExecutor } from '../interfaces/swap-executor.interface';
+import { SwapExecutor, OnSwapSettled } from '../interfaces/swap-executor.interface';
+import { walletNonceManager } from './nonce-manager';
 import { Logger } from '@nestjs/common';
 
 // Fixed gas price in wei per chain id; chains not listed use the default
@@ -12,6 +13,7 @@ const FIXED_GAS_PRICE_BY_CHAIN: Record<string, bigint> = {
 export class EvmSwapExecutor implements SwapExecutor {
   private readonly logger = new Logger(EvmSwapExecutor.name);
   private readonly provider: ethers.Provider;
+  private readonly walletAddress: string;
   private readonly DEFAULT_GAS_MULTIPLIER = BigInt(150); // 1.5x
 
   constructor(
@@ -22,9 +24,15 @@ export class EvmSwapExecutor implements SwapExecutor {
       throw new Error('EVM configuration required');
     }
     this.provider = this.config.evm.wallet.provider;
+    this.walletAddress = this.config.evm.wallet.address;
   }
 
-  async executeSwap(swapData: SwapResponseData, params: SwapParams): Promise<SwapResult> {
+  /**
+   * Submits the swap transaction and returns as soon as it is accepted by the
+   * RPC node, without waiting for it to be mined. Confirmation happens in the
+   * background and is reported through `onSettled`.
+   */
+  async executeSwap(swapData: SwapResponseData, params: SwapParams, onSettled?: OnSwapSettled): Promise<SwapResult> {
     const quoteData = swapData.data?.[0];
     if (!quoteData?.routerResult) {
       throw new Error('Invalid swap data: missing router result');
@@ -37,33 +45,29 @@ export class EvmSwapExecutor implements SwapExecutor {
     }
 
     try {
-      const result = await this.executeEvmTransaction(tx);
-      return this.formatSwapResult(result, routerResult);
+      const response = await this.submitEvmTransaction(tx);
+      this.confirmInBackground(response.hash, onSettled);
+      return this.formatSwapResult(response.hash, routerResult);
     } catch (error) {
       console.error('Swap execution failed:', error);
       throw error;
     }
   }
 
-  private async executeEvmTransaction(tx: any) {
+  private async submitEvmTransaction(tx: any): Promise<ethers.TransactionResponse> {
     if (!this.config.evm?.wallet) {
       throw new Error('EVM wallet required');
     }
+    const wallet = this.config.evm.wallet;
+    const maxRetries = this.networkConfig.maxRetries || 3;
 
     let retryCount = 0;
-    let sentHash: string | undefined;
-    while (retryCount < (this.networkConfig.maxRetries || 3)) {
+    while (true) {
       try {
         this.logger.log('Preparing transaction...');
         const gasMultiplier = BigInt(500); // 5x standard multiplier
 
-        // Get current nonce, including transactions still pending in the mempool
-        const nonce = await this.provider.getTransactionCount(this.config.evm.wallet.address, 'pending');
-
-        // Get current gas prices
-        // const feeData = await this.provider.getFeeData();
-        // const baseFee = feeData.maxFeePerGas || BigInt(0);
-        // const priorityFee = feeData.maxPriorityFeePerGas || BigInt(3000000000); // 3 gwei minimum
+        const nonce = await walletNonceManager.reserve(this.provider, this.networkConfig.id, wallet.address);
 
         const fixedGasPrice = FIXED_GAS_PRICE_BY_CHAIN[this.networkConfig.id] ?? DEFAULT_FIXED_GAS_PRICE;
 
@@ -74,8 +78,6 @@ export class EvmSwapExecutor implements SwapExecutor {
           nonce,
           gasLimit: (BigInt(tx.gas || 0) * gasMultiplier) / BigInt(100),
           gasPrice: fixedGasPrice,
-          // maxFeePerGas: (baseFee * gasMultiplier) / BigInt(100),
-          // maxPriorityFeePerGas: (priorityFee * gasMultiplier) / BigInt(100),
         };
 
         this.logger.log(
@@ -85,74 +87,26 @@ export class EvmSwapExecutor implements SwapExecutor {
             nonce: transaction.nonce,
             gasLimit: transaction.gasLimit.toString(),
             gasPrice: transaction.gasPrice.toString(),
-            // maxFeePerGas: transaction.maxFeePerGas.toString(),
-            // maxPriorityFeePerGas: transaction.maxPriorityFeePerGas.toString(),
           })}`,
         );
 
         this.logger.log('Sending transaction...');
-        const response = await this.config.evm.wallet.sendTransaction(transaction);
-        sentHash = response.hash;
+        const response = await wallet.sendTransaction(transaction);
         this.logger.log(`Transaction sent! Hash: ${response.hash}`);
-
-        // Wait a bit before checking status to allow transaction to be mined
-        // await new Promise((resolve) => setTimeout(resolve, 5000));
-
-        this.logger.log('Waiting for transaction confirmation...');
-        try {
-          // Poll for transaction status
-          let receipt: TransactionReceipt | null = null;
-          let attempts = 0;
-          let notFoundStreak = 0;
-          const maxAttempts = 30; // 30 attempts * 0.5 seconds = 15 seconds total
-          const maxNotFoundStreak = 6; // tolerate ~3 seconds of RPC indexing lag
-
-          while (attempts < maxAttempts) {
-            receipt = await this.provider.getTransactionReceipt(response.hash);
-
-            if (receipt) {
-              this.logger.verbose(`Transaction confirmed! Block number: ${receipt.blockNumber}`);
-              return receipt;
-            }
-
-            // Check if transaction is still pending. A just-sent transaction may
-            // not be indexed by the RPC node yet, so only declare it dropped
-            // after several consecutive misses.
-            const tx = await this.provider.getTransaction(response.hash);
-            if (!tx) {
-              notFoundStreak++;
-              if (notFoundStreak >= maxNotFoundStreak) {
-                // Check if we're on a different network than expected
-                const network = await this.provider.getNetwork();
-                this.logger.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
-                throw new Error('Transaction dropped - check network and gas prices');
-              }
-            } else {
-              notFoundStreak = 0;
-            }
-
-            this.logger.log(`Transaction still pending... (attempt ${attempts + 1}/${maxAttempts})`);
-            await new Promise((resolve) => setTimeout(resolve, 500)); // Wait 0.5 seconds between checks
-            attempts++;
-          }
-
-          throw new Error('Transaction confirmation timed out - check explorer for status');
-        } catch (waitError: any) {
-          console.error('Error waiting for confirmation:', waitError.message);
-          throw waitError;
-        }
+        return response;
       } catch (error: any) {
         retryCount++;
         console.error(`Transaction attempt ${retryCount} failed:`, error.message);
 
+        // The reserved nonce may not have reached the mempool; resync from
+        // chain state before the next attempt
+        walletNonceManager.markStale(this.networkConfig.id, wallet.address);
+
         if (error.code === 'INSUFFICIENT_FUNDS') {
           throw new Error('Insufficient funds for transaction');
         }
-        if (error.code === 'NONCE_EXPIRED') {
-          throw new Error('Transaction nonce expired');
-        }
 
-        if (retryCount === this.networkConfig.maxRetries) {
+        if (retryCount >= maxRetries) {
           console.error('Max retries reached. Last error:', error);
           throw error;
         }
@@ -160,24 +114,77 @@ export class EvmSwapExecutor implements SwapExecutor {
         const delay = 2000 * retryCount;
         this.logger.log(`Retrying in ${delay}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
-
-        // The transaction may have been mined despite the error (e.g. it was
-        // wrongly declared dropped due to RPC lag). Re-sending the swap in
-        // that case would execute it twice, so check before retrying.
-        if (sentHash) {
-          const minedReceipt = await this.provider.getTransactionReceipt(sentHash).catch(() => null);
-          if (minedReceipt) {
-            this.logger.log(`Transaction ${sentHash} was mined after all, skipping retry`);
-            return minedReceipt;
-          }
-        }
       }
     }
-
-    throw new Error('Max retries exceeded');
   }
 
-  private formatSwapResult(txReceipt: TransactionReceipt, routerResult: any): SwapResult {
+  private confirmInBackground(hash: string, onSettled?: OnSwapSettled) {
+    void (async () => {
+      let success = false;
+      let error: string | undefined;
+      try {
+        const receipt = await this.waitForReceipt(hash);
+        success = receipt.status === 1;
+        if (!success) {
+          error = 'Transaction reverted';
+          this.logger.error(`Transaction reverted: ${hash}`);
+        }
+      } catch (confirmError: any) {
+        error = confirmError.message;
+        this.logger.error(`Error confirming transaction ${hash}: ${confirmError.message}`);
+        walletNonceManager.markStale(this.networkConfig.id, this.walletAddress);
+      }
+
+      try {
+        await onSettled?.({
+          success,
+          transactionId: hash,
+          explorerUrl: `${this.networkConfig.explorer}/${hash}`,
+          error,
+        });
+      } catch (callbackError: any) {
+        this.logger.error(`Settlement callback failed for ${hash}: ${callbackError.message}`);
+      }
+    })();
+  }
+
+  private async waitForReceipt(hash: string): Promise<TransactionReceipt> {
+    let attempts = 0;
+    let notFoundStreak = 0;
+    const maxAttempts = 60; // 60 attempts * 0.5 seconds = 30 seconds total
+    const maxNotFoundStreak = 6; // tolerate ~3 seconds of RPC indexing lag
+
+    while (attempts < maxAttempts) {
+      const receipt = await this.provider.getTransactionReceipt(hash);
+
+      if (receipt) {
+        this.logger.log(`Transaction confirmed! Hash: ${hash}, block number: ${receipt.blockNumber}`);
+        return receipt;
+      }
+
+      // Check if transaction is still pending. A just-sent transaction may
+      // not be indexed by the RPC node yet, so only declare it dropped
+      // after several consecutive misses.
+      const tx = await this.provider.getTransaction(hash);
+      if (!tx) {
+        notFoundStreak++;
+        if (notFoundStreak >= maxNotFoundStreak) {
+          const network = await this.provider.getNetwork();
+          this.logger.error(`Transaction dropped. Network: ${network.name} (${network.chainId})`);
+          throw new Error('Transaction dropped - check network and gas prices');
+        }
+      } else {
+        notFoundStreak = 0;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      attempts++;
+    }
+
+    throw new Error('Transaction confirmation timed out - check explorer for status');
+  }
+
+  private formatSwapResult(txHash: string, routerResult: any): SwapResult {
     const fromDecimals = parseInt(routerResult.fromToken.decimal);
     const toDecimals = parseInt(routerResult.toToken.decimal);
 
@@ -186,9 +193,9 @@ export class EvmSwapExecutor implements SwapExecutor {
     const displayToAmount = (Number(routerResult.toTokenAmount) / Math.pow(10, toDecimals)).toFixed(6);
 
     return {
-      success: txReceipt.status === 1 ? true : false,
-      transactionId: txReceipt.hash,
-      explorerUrl: `${this.networkConfig.explorer}/${txReceipt.hash}`,
+      success: true,
+      transactionId: txHash,
+      explorerUrl: `${this.networkConfig.explorer}/${txHash}`,
       details: {
         fromToken: {
           symbol: routerResult.fromToken.tokenSymbol,

@@ -94,13 +94,17 @@ export class SwapService {
           });
           messages.push(message);
         },
+        async (settlement) => {
+          await this.cleanMessages(chatId, messages);
+          const caption = settlement.success
+            ? swapSuccessCaption(amount, nativeSymbol, 'buy', Date.now() - swapStartedAt)
+            : swapFailureCaption(amount, nativeSymbol, 'buy');
+          await this.bot.telegram.sendMessage(chatId, caption, {
+            parse_mode: 'HTML',
+            reply_markup: closeKeyboard().reply_markup,
+          });
+        },
       );
-      await this.cleanMessages(chatId, messages);
-      const successCaption = swapSuccessCaption(amount, nativeSymbol, 'buy', Date.now() - swapStartedAt);
-      await this.bot.telegram.sendMessage(chatId, successCaption, {
-        parse_mode: 'HTML',
-        reply_markup: closeKeyboard().reply_markup,
-      });
     } catch (error) {
       await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to buy token', error);
@@ -151,13 +155,17 @@ export class SwapService {
           });
           messages.push(message);
         },
+        async (settlement) => {
+          await this.cleanMessages(chatId, messages);
+          const caption = settlement.success
+            ? swapSuccessCaption(amount, tokenInfo.symbol, 'sell', Date.now() - swapStartedAt)
+            : swapFailureCaption(amount, tokenInfo.symbol, 'sell');
+          await this.bot.telegram.sendMessage(chatId, caption, {
+            parse_mode: 'HTML',
+            reply_markup: closeKeyboard().reply_markup,
+          });
+        },
       );
-      await this.cleanMessages(chatId, messages);
-      const successCaption = swapSuccessCaption(amount, tokenInfo.symbol, 'sell', Date.now() - swapStartedAt);
-      await this.bot.telegram.sendMessage(chatId, successCaption, {
-        parse_mode: 'HTML',
-        reply_markup: closeKeyboard().reply_markup,
-      });
     } catch (error) {
       await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to sell token', error);

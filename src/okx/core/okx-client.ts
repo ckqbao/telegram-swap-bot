@@ -1,4 +1,4 @@
-import { BridgeAPI, DexAPI, OKXConfig } from '@okx-dex/okx-dex-sdk';
+import { BridgeAPI, OKXConfig } from '@okx-dex/okx-dex-sdk';
 import { EVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { env } from '@/env/env';
 import { HTTPClient } from '@okx-dex/okx-dex-sdk/dist/core/http-client';
@@ -12,7 +12,7 @@ export class OKXClient {
     projectId: env.OKX_PROJECT_ID,
   };
 
-  public dex: DexAPI;
+  public dex: OkxDex;
 
   constructor(wallet: EVMWallet) {
     const client = new OKXDexClient({ ...this.config, evm: { wallet } });
