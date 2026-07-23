@@ -54,6 +54,24 @@ export class EvmSwapExecutor implements SwapExecutor {
     }
   }
 
+  // The fixed per-chain price is a floor tuned to each chain's typical base
+  // fee; base fees still drift and can briefly exceed it, causing the RPC to
+  // reject the tx outright ("max fee per gas less than block base fee")
+  // instead of just sending it slowly. Pad the live base fee and take the
+  // larger of that and the floor.
+  private async getGasPrice(): Promise<bigint> {
+    const fixedGasPrice = FIXED_GAS_PRICE_BY_CHAIN[this.networkConfig.id] ?? DEFAULT_FIXED_GAS_PRICE;
+
+    const block = await this.provider.getBlock('latest');
+    const baseFee = block?.baseFeePerGas;
+    if (baseFee == null) {
+      return fixedGasPrice;
+    }
+
+    const baseFeeWithBuffer = baseFee + baseFee / BigInt(10); // +10% headroom
+    return baseFeeWithBuffer > fixedGasPrice ? baseFeeWithBuffer : fixedGasPrice;
+  }
+
   private async submitEvmTransaction(tx: any): Promise<ethers.TransactionResponse> {
     if (!this.config.evm?.wallet) {
       throw new Error('EVM wallet required');
@@ -67,9 +85,10 @@ export class EvmSwapExecutor implements SwapExecutor {
         this.logger.log('Preparing transaction...');
         const gasMultiplier = BigInt(500); // 5x standard multiplier
 
-        const nonce = await walletNonceManager.reserve(this.provider, this.networkConfig.id, wallet.address);
-
-        const fixedGasPrice = FIXED_GAS_PRICE_BY_CHAIN[this.networkConfig.id] ?? DEFAULT_FIXED_GAS_PRICE;
+        const [nonce, gasPrice] = await Promise.all([
+          walletNonceManager.reserve(this.provider, this.networkConfig.id, wallet.address),
+          this.getGasPrice(),
+        ]);
 
         const transaction = {
           data: tx.data,
@@ -77,7 +96,7 @@ export class EvmSwapExecutor implements SwapExecutor {
           value: tx.value || '0',
           nonce,
           gasLimit: (BigInt(tx.gas || 0) * gasMultiplier) / BigInt(100),
-          gasPrice: fixedGasPrice,
+          gasPrice,
         };
 
         this.logger.log(
