@@ -2,14 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createEVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { parseUnits } from 'ethers';
 import { getChain } from '@/common/constants';
-import { OnStatusUpdate, OnSwapSettled, Swap, SwapConfig } from '@/common/interfaces/swap.interface';
+import {
+  OnStatusUpdate,
+  OnSwapSettled,
+  Swap,
+  SwapAmountTooLowError,
+  SwapConfig,
+} from '@/common/interfaces/swap.interface';
 import { ViemPublicClient } from '@/common/providers';
 import { ChainClientService } from '@/common/services/chain-client.service';
 import { getEthersProvider } from '@/common/utils/ethers-adapter';
 import { OKXClient } from './core/okx-client';
 import { toBaseUnits } from './utils/units';
-import { OKX_NATIVE_TOKEN_ADDRESS } from './okx.constant';
+import { OKX_ERROR_CODE_AMOUNT_TOO_LOW, OKX_NATIVE_TOKEN_ADDRESS } from './okx.constant';
 import { env } from '@/env/env';
+
+function isAmountTooLowError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as Error & { responseBody?: { code?: string } }).responseBody?.code === OKX_ERROR_CODE_AMOUNT_TOO_LOW
+  );
+}
 
 @Injectable()
 export class OkxSwapService implements Swap {
@@ -39,19 +52,25 @@ export class OkxSwapService implements Swap {
     await onStatusUpdate?.('swapping');
 
     this.logger.log(`Executing swap at: ${new Date().toISOString()}`);
-    const result = await okxClient.dex.executeSwap(
-      {
-        chainId,
-        fromTokenAddress,
-        toTokenAddress,
-        amount,
-        slippage: `${slippage / 100}`,
-        userWalletAddress: evmWallet.address,
-        feePercent: env.OKX_FEE_PERCENT,
-        fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
-      },
-      onSettled,
-    );
+    let result: Awaited<ReturnType<typeof okxClient.dex.executeSwap>>;
+    try {
+      result = await okxClient.dex.executeSwap(
+        {
+          chainId,
+          fromTokenAddress,
+          toTokenAddress,
+          amount,
+          slippage: `${slippage / 100}`,
+          userWalletAddress: evmWallet.address,
+          feePercent: env.OKX_FEE_PERCENT,
+          fromTokenReferrerWalletAddress: env.DEV_WALLET_ADDRESS,
+        },
+        onSettled,
+      );
+    } catch (error) {
+      if (isAmountTooLowError(error)) throw new SwapAmountTooLowError();
+      throw error;
+    }
 
     if (!result.success) {
       throw new Error('Swap failed');

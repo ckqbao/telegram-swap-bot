@@ -5,6 +5,7 @@ import { CallbackQuery, Message } from 'telegraf/typings/core/types/typegram';
 import { formatUnits, Hex } from 'viem';
 import { OneInchBalanceService } from '@/1inch/1inch-balance.service';
 import { ChainKey, DEFAULT_CHAIN_KEY, getChain } from '@/common/constants';
+import { SwapAmountTooLowError } from '@/common/interfaces/swap.interface';
 import { MsgLogRepository, PreferenceRepository, WalletRepository } from '@/database/repository';
 import { Context } from './interfaces/context.interface';
 import { OneInchTokenService } from '@/1inch/1inch-token.service';
@@ -169,7 +170,10 @@ export class SwapService {
     } catch (error) {
       await this.cleanMessages(chatId, messages);
       this.logger.error('Failed to sell token', error);
-      const failedCaption = swapFailureCaption(amount, tokenInfo.symbol, 'sell');
+      const failedCaption =
+        error instanceof SwapAmountTooLowError
+          ? `Balance too small to sell — ${amount} ${tokenInfo.symbol} is below the provider's minimum order size`
+          : swapFailureCaption(amount, tokenInfo.symbol, 'sell');
       await this.bot.telegram.sendMessage(chatId, failedCaption, {
         parse_mode: 'HTML',
         reply_markup: closeKeyboard().reply_markup,

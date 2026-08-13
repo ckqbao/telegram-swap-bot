@@ -33,6 +33,13 @@ export type SwapConfig = {
   approveOnly?: boolean;
 };
 
+export class SwapAmountTooLowError extends Error {
+  constructor() {
+    super('Swap amount is too low to be routed by the provider');
+    this.name = 'SwapAmountTooLowError';
+  }
+}
+
 export interface Swap {
   readonly nativeTokenAddress: Hex;
   /**
