@@ -5,9 +5,9 @@ import { walletNonceManager } from './nonce-manager';
 import { Logger } from '@nestjs/common';
 
 // Fixed gas price in wei per chain id; chains not listed use the default
-const DEFAULT_FIXED_GAS_PRICE = BigInt(150000000); // 0.15 Gwei
+const DEFAULT_FIXED_GAS_PRICE = BigInt(148228573); // ~0.1482285734 Gwei
 const FIXED_GAS_PRICE_BY_CHAIN: Record<string, bigint> = {
-  '4663': BigInt(120000000), // Robinhood Chain: 0.12 Gwei
+  '4663': BigInt(118742963), // Robinhood Chain: ~0.1187429631 Gwei
 };
 
 export class EvmSwapExecutor implements SwapExecutor {
